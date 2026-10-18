@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  submodule-integrity:
+    name: Submodule and gitlink integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pinned sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Verify declarations, gitlinks, and checked-out commits
+        run: python3 scripts/check-submodules.py
+
+      # There is no root Makefile, test suite, or test target in NEWOS-ports.
+      # The glxgears port requires a complete NEWOS checkout and its built
+      # toolchain/newos-gcc; Nova documents that its BoredOS SDK/ABI is not
+      # supplied by NEWOS and it is not presently buildable or runnable here.
+      # Do not report a skipped or simulated build as a passing build/test.
