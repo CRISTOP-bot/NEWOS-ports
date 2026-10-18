@@ -1,0 +1,4 @@
+[submodule "glxgears-newos"]
+	path = glxgears-newos
+	url = https://github.com/CRISTOP-bot/glxgears-newos.git
+	branch = main

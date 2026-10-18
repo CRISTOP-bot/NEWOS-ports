@@ -1,0 +1,4 @@
+/stage/*
+!/stage/README.md
+/distfiles/*
+!/distfiles/README.md
