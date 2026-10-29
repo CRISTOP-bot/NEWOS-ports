@@ -1,0 +1,83 @@
+diff --git a/demo/voxel_demo.c b/demo/voxel_demo.c
+index 5d3564a..a3ee0b4 100644
+--- a/demo/voxel_demo.c
++++ b/demo/voxel_demo.c
+@@ -42,8 +42,6 @@ static struct voxel_framebuffer fb;
+ static int active_app=-1, menu_open=0;
+ static struct app_window *dragging=0;
+ static int32_t drag_dx,drag_dy;
+-static const char *dialog_title="About VOXEL";
+-static const char *dialog_message="CLASSIC DESKTOP PREVIEW";
+ static uint32_t previous_buttons=0;
+ static const char no_fb[]="VOXEL: no supported NEWOS framebuffer; boot with Limine graphics.\n";
+ static const char no_space[]="VOXEL: unable to initialize classic desktop surfaces.\n";
+@@ -80,7 +78,6 @@ static uint32_t parse_frame_limit(int argc,char **argv)
+
+ static void draw_desktop(void)
+ {
+-    size_t i;
+     (void)voxel_surface_init(&desktop,VIEW_W,VIEW_H,VIEW_W,VOXEL_XRGB8888,desktop_pixels,VIEW_W*VIEW_H);
+     voxel_surface_clear(&desktop,theme.desktop);
+     voxel_ui_icon(&desktop,12,14,0,"My Computer",0);
+@@ -204,7 +201,6 @@ static void pointer_click(int32_t x,int32_t y,uint32_t buttons)
+     }
+     id=app_at(x,y);
+     if(id>=0) {
+-        file_menu_open=0;
+         struct app_window *a=&apps[id];
+         int32_t lx=x-a->x,ly=y-a->y;
+         raise_app(id);
+diff --git a/src/platform/newos/apps.c b/src/platform/newos/apps.c
+index 8df4e94..aff0600 100644
+--- a/src/platform/newos/apps.c
++++ b/src/platform/newos/apps.c
+@@ -18,9 +18,11 @@ static long syscall3(long n,long a,long b,long c){long r;__asm__ __volatile__("i
+ static int list_dir(void *u,const char *path,struct voxel_fs_entry *out,uint32_t cap)
+ {
+     struct newos_dirent raw[16];long count,i;(void)u;
+-    if(!path||!out||!cap)return -1;if(cap>16)cap=16;
++    if(!path||!out||!cap)return -1;
++    if(cap>16)cap=16;
+     count=syscall3(VOXEL_SYS_READDIR,(long)(uintptr_t)path,(long)(uintptr_t)raw,(long)(cap*sizeof(raw[0])));
+-    if(count<0)return -1;if((uint64_t)count>cap)count=cap;
++    if(count<0)return -1;
++    if((uint64_t)count>cap)count=cap;
+     for(i=0;i<count;i++){uint32_t j;for(j=0;j<VOXEL_FS_NAME_MAX-1&&raw[i].name[j];j++)out[i].name[j]=raw[i].name[j];out[i].name[j]=0;out[i].mode=raw[i].mode;out[i].size=raw[i].size;}
+     return (int)count;
+ }
+@@ -29,7 +31,9 @@ static int read_file(void*u,const char*path,void*buffer,uint32_t capacity,uint32
+     long fd,n;(void)u;if(!path||!buffer||!bytes_read)return -1;*bytes_read=0;
+     fd=syscall2(VOXEL_SYS_OPEN,(long)(uintptr_t)path,O_READ);if(fd<0)return -1;
+     n=syscall3(VOXEL_SYS_READ,fd,(long)(uintptr_t)buffer,capacity);(void)syscall1(VOXEL_SYS_CLOSE,fd);
+-    if(n<0)return -1;*bytes_read=(uint32_t)n;return 0;
++    if(n<0)return -1;
++    *bytes_read=(uint32_t)n;
++    return 0;
+ }
+ static int write_file(void*u,const char*path,const void*buffer,uint32_t bytes)
+ {
+@@ -44,7 +48,7 @@ static int stat_path(void*u,const char*path,uint32_t*mode)
+     if(syscall2(VOXEL_SYS_STAT,(long)(uintptr_t)path,(long)(uintptr_t)&st)<0)return -1;
+     *mode=st.mode;return 0;
+ }
+-static int open_path(void*u,const char*path){(void)u;(void)path;return -1;}
++static void open_path(void*u,const char*path){(void)u;(void)path;}
+ static int spawn(void*u,const char*path)
+ {
+     char *argv[2];long r;(void)u;if(!path||!path[0])return -1;
+@@ -53,5 +57,14 @@ static int spawn(void*u,const char*path)
+ }
+ void voxel_newos_app_host_init(struct voxel_app_host*host)
+ {
+-    if(!host)return;host->userdata=0;host->list_dir=list_dir;host->read_file=read_file;host->write_file=write_file;host->spawn=spawn;host->stat_path=stat_path;host->theme=0;host->open_path=open_path;host->open_image=0;
++    if(!host)return;
++    host->userdata=0;
++    host->list_dir=list_dir;
++    host->read_file=read_file;
++    host->write_file=write_file;
++    host->spawn=spawn;
++    host->stat_path=stat_path;
++    host->theme=0;
++    host->open_path=open_path;
++    host->open_image=0;
+ }
