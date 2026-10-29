@@ -6,3 +6,8 @@
 	path = nova
 	url = https://github.com/BoredOS/nova.git
 	branch = main
+
+[submodule "openrc-newos"]
+	path = openrc-newos
+	url = https://github.com/CRISTOP-bot/openrc.git
+	branch = newos-port
