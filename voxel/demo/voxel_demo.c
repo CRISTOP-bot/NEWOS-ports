@@ -164,8 +164,10 @@ static void draw_pointer(void)
     voxel_surface_clear(&cursor,0);
     for(y=0;y<CURSOR_H;++y) {
         uint32_t x;
-        for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<20u)
-            cursor_pixels[(size_t)y*CURSOR_W+x]=(x==0u||x==y/2u||y==19u||x==0)?0xffffffffu:0x00000000u;
+        for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<22u) {
+            int edge = (x==0u||x==y/2u||y==21u);
+            cursor_pixels[(size_t)y*CURSOR_W+x]= edge ? 0xff000000u : 0xffffffffu;
+        }
     }
 }
 
@@ -367,7 +369,7 @@ int main(int argc,char **argv)
                 voxel_compositor_set_visible(&compositor,mi,menu_open);
                 (void)voxel_compositor_raise(&compositor,mi);
             }
-            if(ci!=UINT32_MAX)(void)voxel_compositor_raise(&compositor,ci);
+            if(ci!=UINT32_MAX){voxel_compositor_set_visible(&compositor,ci,1);(void)voxel_compositor_raise(&compositor,ci);}
         }
         {
             char keys[64];
