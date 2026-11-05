@@ -165,7 +165,7 @@ static void draw_pointer(void)
     for(y=0;y<CURSOR_H;++y) {
         uint32_t x;
         for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<15u)
-            cursor_pixels[(size_t)y*CURSOR_W+x]=(x==0u||x==y/2u||y==14u)?0xffffffffu:0xff000000u;
+            cursor_pixels[(size_t)y*CURSOR_W+x]=(x==0u||x==y/2u||y==14u)?0xffffffffu:0x00000000u;
     }
 }
 
@@ -330,6 +330,10 @@ int main(int argc,char **argv)
     while(frame_limit==0||frame<frame_limit) {
         if(voxel_pointer_poll(&pointer)==0) {
             int32_t mx=pointer.x-(int32_t)origin_x,my=pointer.y-(int32_t)origin_y;
+            if (mx < 0) mx = 0;
+            if (my < 0) my = 0;
+            if (mx >= (int32_t)VIEW_W) mx = (int32_t)VIEW_W - 1;
+            if (my >= (int32_t)VIEW_H) my = (int32_t)VIEW_H - 1;
             uint32_t ci=layer_for_surface(&cursor);
             int pressed=(pointer.buttons&1u)&&!(previous_buttons&1u);
             if(ci==UINT32_MAX)return 1;
