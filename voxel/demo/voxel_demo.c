@@ -322,8 +322,11 @@ int main(int argc,char **argv)
     active_app=VOXEL_APP_EXPLORER;
     {
         uint32_t cursor_layer=layer_for_surface(&cursor);
-        if(cursor_layer!=UINT32_MAX)
+        if(cursor_layer!=UINT32_MAX) {
+            compositor.layers[cursor_layer].x=(int32_t)(VIEW_W/2);
+            compositor.layers[cursor_layer].y=(int32_t)(VIEW_H/2);
             (void)voxel_compositor_raise(&compositor,cursor_layer);
+        }
     }
     origin_x=(uint32_t)((fb.info.width-VIEW_W)/2u);origin_y=(uint32_t)((fb.info.height-VIEW_H)/2u);
     (void)voxel_console_gui_claim();
