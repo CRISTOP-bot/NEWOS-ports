@@ -77,14 +77,36 @@ static uint32_t parse_frame_limit(int argc,char **argv)
     return 0;
 }
 
+
+static void draw_wallpaper(struct voxel_surface *s)
+{
+    uint32_t y, x;
+    if (!s || !s->pixels) return;
+    for (y = 0; y < s->height; ++y) {
+        /* vertical gradient from navy to teal */
+        uint32_t t = (uint32_t)((uint64_t)y * 255u / (s->height ? s->height - 1 : 1));
+        uint32_t r = (uint32_t)(0x00u + (0x00u - 0x00u) * t / 255u);
+        uint32_t g = (uint32_t)(0x18u + (0x80u - 0x18u) * t / 255u);
+        uint32_t b = (uint32_t)(0x28u + (0x80u - 0x28u) * t / 255u);
+        uint32_t color = (r << 16) | (g << 8) | b;
+        for (x = 0; x < s->width; ++x) {
+            /* subtle diagonal stripe pattern */
+            uint32_t c = color;
+            if (((x + y) / 16u) % 2u == 0u) c = (c & 0xfefefe) >> 1; /* darken slightly */
+            s->pixels[(size_t)y * s->stride_pixels + x] = c;
+        }
+    }
+}
+
 static void draw_desktop(void)
 {
     (void)voxel_surface_init(&desktop,VIEW_W,VIEW_H,VIEW_W,VOXEL_XRGB8888,desktop_pixels,VIEW_W*VIEW_H);
-    voxel_surface_clear(&desktop,theme.desktop);
+    draw_wallpaper(&desktop);
     voxel_ui_icon(&desktop,12,14,0,"My Computer",0);
     voxel_ui_icon(&desktop,12,66,1,"Documents",0);
     voxel_ui_icon(&desktop,12,118,2,"Settings",0);
     voxel_ui_icon(&desktop,12,170,2,"DOOM",0);
+    voxel_ui_icon(&desktop,12,222,2,"GEARS",0);
     /* Pixel-art desktop bitmap accent: intentionally flat, not a gradient. */
     voxel_ui_taskbar(&desktop,VIEW_W,VIEW_H,menu_open);
 }
@@ -233,14 +255,20 @@ static void pointer_click(int32_t x,int32_t y,uint32_t buttons)
         }
         return;
     }
-    if(x<55&&y<218) {
+    if(x<55&&y<270) {
         if(y<62) raise_app(VOXEL_APP_EXPLORER);
         else if(y<114) raise_app(VOXEL_APP_EXPLORER);
         else if(y<166) raise_app(VOXEL_APP_SETTINGS);
-        else {
+        else if (y < 218) {
             (void)voxel_keyboard_release();
             (void)voxel_console_gui_release();
             (void)app_host.spawn(app_host.userdata, "/bin/doom");
+            doom_launch_requested = 1;
+        }
+        else {
+            (void)voxel_keyboard_release();
+            (void)voxel_console_gui_release();
+            (void)app_host.spawn(app_host.userdata, "/bin/glxgears");
             doom_launch_requested = 1;
         }
     }
