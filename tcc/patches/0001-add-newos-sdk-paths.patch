@@ -1,0 +1,20 @@
+--- a/libtcc.c
++++ b/libtcc.c
+@@ -753,8 +753,17 @@
+ #else
+     tcc_set_lib_path(s, CONFIG_TCCDIR);
+ #endif
++    /* NEWOS: the image ships the C SDK at the standard locations and tcc's
++     * private headers/libtcc1.a under its CONFIG_TCCDIR (/usr/lib/tcc).
++     * Upstream only searches CONFIG_TCCDIR for libraries, so without this
++     * path `tcc file.c -lc` cannot find the SDK archives on NEWOS.  This
++     * must happen after tccpp_new(): the path helpers use the CString
++     * allocator (cstr_alloc), which tccpp_new() initialises.  (<stdio.h>
++     * needs no extra path: CONFIG_TCC_SYSINCLUDEPATHS default already
++     * contains /usr/include.) */
+     tccelf_new(s);
+     tccpp_new(s);
++    tcc_add_library_path(s, "/usr/lib");
+ 
+     /* we add dummy defines for some special macros to speed up tests
+        and to have working defined() */

@@ -1,0 +1,21 @@
+--- a/tccelf.c
++++ b/tccelf.c
+@@ -1079,6 +1079,18 @@
+             }
+ 
+ #ifdef TCC_TARGET_X86_64
++            /* A static executable has no dynamic loader to fill the GOT
++               slot of a PLT entry, and tcc_output_file() only calls
++               relocate_plt() for dynamic output.  The stub would therefore
++               jump to a zero (or unrelocated) GOT slot.  On x86-64 a call
++               is just a PC-relative branch, so resolve PLT32 directly when
++               linking statically; a genuinely undefined function then
++               fails the final relocation instead of producing a binary
++               that crashes at run time. */
++            if (type == R_X86_64_PLT32 && s1->static_link) {
++                rel->r_info = ELFW(R_INFO)(sym_index, R_X86_64_PC32);
++                continue;
++            }
+             if ((type == R_X86_64_PLT32 || type == R_X86_64_PC32) &&
+                 (ELFW(ST_VISIBILITY)(sym->st_other) != STV_DEFAULT ||
+ 		 ELFW(ST_BIND)(sym->st_info) == STB_LOCAL)) {

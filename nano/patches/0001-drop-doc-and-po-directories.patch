@@ -1,0 +1,67 @@
+--- a/configure
++++ b/configure
+@@ -53530,7 +53530,7 @@
+ fi
+ 
+ 
+-ac_config_files="$ac_config_files Makefile doc/Makefile doc/sample.nanorc lib/Makefile m4/Makefile po/Makefile.in src/Makefile syntax/Makefile"
++ac_config_files="$ac_config_files Makefile lib/Makefile m4/Makefile src/Makefile syntax/Makefile"
+ 
+ 
+ cat >confcache <<\_ACEOF
+@@ -54387,11 +54387,8 @@
+     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
+     "po-directories") CONFIG_COMMANDS="$CONFIG_COMMANDS po-directories" ;;
+     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+-    "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
+-    "doc/sample.nanorc") CONFIG_FILES="$CONFIG_FILES doc/sample.nanorc" ;;
+     "lib/Makefile") CONFIG_FILES="$CONFIG_FILES lib/Makefile" ;;
+     "m4/Makefile") CONFIG_FILES="$CONFIG_FILES m4/Makefile" ;;
+-    "po/Makefile.in") CONFIG_FILES="$CONFIG_FILES po/Makefile.in" ;;
+     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+     "syntax/Makefile") CONFIG_FILES="$CONFIG_FILES syntax/Makefile" ;;
+ 
+--- a/configure.ac
++++ b/configure.ac
+@@ -586,11 +586,8 @@
+ 
+ AC_CONFIG_FILES([
+ Makefile
+-doc/Makefile
+-doc/sample.nanorc
+ lib/Makefile
+ m4/Makefile
+-po/Makefile.in
+ src/Makefile
+ syntax/Makefile
+ ])
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -1,6 +1,6 @@
+ AUTOMAKE_OPTIONS = gnu no-dependencies
+ 
+-SUBDIRS = doc lib m4 po src
++SUBDIRS = lib m4 src
+ 
+ if USE_COLOR
+ SUBDIRS += syntax
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -272,7 +272,7 @@
+   unique=`for i in $$list; do \
+     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+   done | $(am__uniquify_input)`
+-DIST_SUBDIRS = doc lib m4 po src syntax
++DIST_SUBDIRS = lib m4 src syntax
+ am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
+ 	ABOUT-NLS AUTHORS COPYING COPYING.DOC ChangeLog INSTALL NEWS \
+ 	README THANKS TODO compile config.guess config.rpath \
+@@ -2237,7 +2237,7 @@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
+ AUTOMAKE_OPTIONS = gnu no-dependencies
+-SUBDIRS = doc lib m4 po src $(am__append_1)
++SUBDIRS = lib m4 src $(am__append_1)
+ EXTRA_DIST = IMPROVEMENTS
+ ACLOCAL_AMFLAGS = -I m4
+ all: config.h

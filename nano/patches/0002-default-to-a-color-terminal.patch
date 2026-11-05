@@ -1,0 +1,16 @@
+--- a/src/nano.c
++++ b/src/nano.c
+@@ -2150,8 +2150,10 @@
+ 			}
+ 	}
+ 
+-	/* Curses needs TERM; if it is unset, try falling back to a VT220. */
++	/* Curses needs TERM; if it is unset, fall back to the Linux console
++	 * entry. It is compiled into the image and, unlike vt220, advertises
++	 * eight colors, which is what the NEWOS framebuffer console implements. */
+ 	if (getenv("TERM") == NULL)
+-		putenv("TERM=vt220");
++		putenv("TERM=linux");
+ 
+ 	/* Enter into curses mode.  Abort if this fails. */
+ 	if (initscr() == NULL)
