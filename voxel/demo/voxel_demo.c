@@ -11,6 +11,7 @@
 #define TASKBAR_H 30
 #define TITLE_H 22
 #define APP_COUNT VOXEL_APP_COUNT
+static int doom_launch_requested = 0;
 #define POPUP_W VIEW_W
 #define POPUP_H VIEW_H
 #define MENU_W 188u
@@ -83,6 +84,7 @@ static void draw_desktop(void)
     voxel_ui_icon(&desktop,12,14,0,"My Computer",0);
     voxel_ui_icon(&desktop,12,66,1,"Documents",0);
     voxel_ui_icon(&desktop,12,118,2,"Settings",0);
+    voxel_ui_icon(&desktop,12,170,2,"DOOM",0);
     /* Pixel-art desktop bitmap accent: intentionally flat, not a gradient. */
     voxel_ui_taskbar(&desktop,VIEW_W,VIEW_H,menu_open);
 }
@@ -231,8 +233,16 @@ static void pointer_click(int32_t x,int32_t y,uint32_t buttons)
         }
         return;
     }
-    if(x<55&&y<165) {
-        if(y<62||y<114) raise_app(VOXEL_APP_EXPLORER); else raise_app(VOXEL_APP_SETTINGS);
+    if(x<55&&y<218) {
+        if(y<62) raise_app(VOXEL_APP_EXPLORER);
+        else if(y<114) raise_app(VOXEL_APP_EXPLORER);
+        else if(y<166) raise_app(VOXEL_APP_SETTINGS);
+        else {
+            (void)voxel_keyboard_release();
+            (void)voxel_console_gui_release();
+            (void)app_host.spawn(app_host.userdata, "/bin/doom");
+            doom_launch_requested = 1;
+        }
     }
 }
 
@@ -338,6 +348,7 @@ int main(int argc,char **argv)
         if(voxel_compositor_present(&compositor,&fb,origin_x,origin_y)!=0) {
             (void)os_write(present_error,sizeof(present_error)-1u);return 1;
         }
+        if(doom_launch_requested){ (void)os_write(completed,sizeof(completed)-1u); return 0; }
         ++frame;if(voxel_sleep_ms(16u)<0)return 1;
     }
     (void)voxel_keyboard_release();
