@@ -16,8 +16,8 @@ static int doom_launch_requested = 0;
 #define POPUP_H VIEW_H
 #define MENU_W 188u
 #define MENU_H (APP_COUNT * 20u + 8u)
-#define CURSOR_W 12u
-#define CURSOR_H 18u
+#define CURSOR_W 16u
+#define CURSOR_H 24u
 
 struct app_window {
     struct voxel_surface surface;
@@ -164,8 +164,8 @@ static void draw_pointer(void)
     voxel_surface_clear(&cursor,0);
     for(y=0;y<CURSOR_H;++y) {
         uint32_t x;
-        for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<15u)
-            cursor_pixels[(size_t)y*CURSOR_W+x]=(x==0u||x==y/2u||y==14u)?0xffffffffu:0x00000000u;
+        for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<20u)
+            cursor_pixels[(size_t)y*CURSOR_W+x]=(x==0u||x==y/2u||y==19u||x==0)?0xffffffffu:0x00000000u;
     }
 }
 
