@@ -16,8 +16,8 @@ static int doom_launch_requested = 0;
 #define POPUP_H VIEW_H
 #define MENU_W 188u
 #define MENU_H (APP_COUNT * 20u + 8u)
-#define CURSOR_W 16u
-#define CURSOR_H 24u
+#define CURSOR_W 40u
+#define CURSOR_H 40u
 
 struct app_window {
     struct voxel_surface surface;
@@ -160,13 +160,31 @@ static void draw_popup(void)
 
 static void draw_pointer(void)
 {
+    /* Draw the cursor onto the desktop surface as a fallback so it is always
+     * visible even if the compositor cursor layer is not composited. */
+    uint32_t ci=layer_for_surface(&cursor);
+    int32_t mx = (ci!=UINT32_MAX) ? compositor.layers[ci].x : (int32_t)(VIEW_W/2);
+    int32_t my = (ci!=UINT32_MAX) ? compositor.layers[ci].y : (int32_t)(VIEW_H/2);
     uint32_t y;
-    voxel_surface_clear(&cursor,0);
-    for(y=0;y<CURSOR_H;++y) {
+    /* outline */
+    for(y=0;y<22u;++y) {
         uint32_t x;
-        for(x=0;x<CURSOR_W;++x) if(x<=y/2u&&y<22u) {
+        for(x=0;x<=y/2u && x<CURSOR_W;++x) {
             int edge = (x==0u||x==y/2u||y==21u);
-            cursor_pixels[(size_t)y*CURSOR_W+x]= edge ? 0xff000000u : 0xffffffffu;
+            uint32_t color = edge ? 0x00000000u : 0x00ffffffu;
+            /* draw on desktop surface */
+            if (mx+(int32_t)x>=0 && my+(int32_t)y>=0 &&
+                mx+(int32_t)x<(int32_t)VIEW_W && my+(int32_t)y<(int32_t)VIEW_H)
+                voxel_surface_put_pixel(&desktop, mx+(int32_t)x, my+(int32_t)y, color);
+        }
+    }
+    /* also fill cursor layer */
+    voxel_surface_clear(&cursor,0x00000000u);
+    for(y=0;y<22u;++y) {
+        uint32_t x;
+        for(x=0;x<=y/2u && x<CURSOR_W;++x) {
+            int edge = (x==0u||x==y/2u||y==21u);
+            cursor_pixels[(size_t)y*CURSOR_W+x] = edge ? 0xff000000u : 0xffffffffu;
         }
     }
 }
