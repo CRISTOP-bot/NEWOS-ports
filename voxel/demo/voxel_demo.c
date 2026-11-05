@@ -286,6 +286,8 @@ int main(int argc,char **argv)
             (void)voxel_compositor_raise(&compositor,cursor_layer);
     }
     origin_x=(uint32_t)((fb.info.width-VIEW_W)/2u);origin_y=(uint32_t)((fb.info.height-VIEW_H)/2u);
+    (void)voxel_console_gui_claim();
+    (void)voxel_keyboard_grab();
     (void)os_write(ready,sizeof(ready)-1u);
     while(frame_limit==0||frame<frame_limit) {
         if(voxel_pointer_poll(&pointer)==0) {
@@ -325,12 +327,21 @@ int main(int argc,char **argv)
             }
             if(ci!=UINT32_MAX)(void)voxel_compositor_raise(&compositor,ci);
         }
+        {
+            char keys[64];
+            int kn=voxel_keyboard_read(keys,64);
+            for(int ki=0;ki<kn;++ki) {
+                if(keys[ki]==27||keys[ki]=='q') { frame_limit=frame?frame:1; }
+            }
+        }
         voxel_compositor_compose(&compositor,full);
         if(voxel_compositor_present(&compositor,&fb,origin_x,origin_y)!=0) {
             (void)os_write(present_error,sizeof(present_error)-1u);return 1;
         }
         ++frame;if(voxel_sleep_ms(16u)<0)return 1;
     }
+    (void)voxel_keyboard_release();
+    (void)voxel_console_gui_release();
     if(frame_limit)(void)os_write(completed,sizeof(completed)-1u);
     return 0;
 }

@@ -41,4 +41,16 @@ void voxel_ui_menu(struct voxel_surface *surface, struct voxel_ui_rect rect,
 void voxel_ui_dialog(struct voxel_surface *surface, struct voxel_ui_rect rect,
                      const char *title, const char *message);
 
+
+void voxel_ui_checkbox(struct voxel_surface *surface, struct voxel_ui_rect rect,
+                       const char *label, int checked);
+void voxel_ui_radio(struct voxel_surface *surface, struct voxel_ui_rect rect,
+                    const char *label, int selected);
+void voxel_ui_progress(struct voxel_surface *surface, struct voxel_ui_rect rect,
+                       uint32_t value, uint32_t maximum);
+void voxel_ui_scrollbar(struct voxel_surface *surface, struct voxel_ui_rect rect,
+                        uint32_t value, uint32_t maximum, int vertical);
+void voxel_ui_text_field(struct voxel_surface *surface, struct voxel_ui_rect rect,
+                         const char *text, uint32_t caret);
+
 #endif

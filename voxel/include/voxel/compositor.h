@@ -25,6 +25,8 @@ struct voxel_compositor {
     uint32_t *output;
     struct voxel_layer layers[VOXEL_MAX_LAYERS];
     size_t layer_count;
+    int has_dirty;
+    struct voxel_rect dirty;
 };
 
 int voxel_compositor_init(struct voxel_compositor *compositor,
@@ -38,6 +40,9 @@ int voxel_compositor_remove(struct voxel_compositor *compositor, size_t index);
 int voxel_compositor_raise(struct voxel_compositor *compositor, size_t index);
 void voxel_compositor_set_visible(struct voxel_compositor *compositor,
                                   size_t index, int visible);
+void voxel_compositor_damage(struct voxel_compositor *compositor,
+                            struct voxel_rect rect);
+void voxel_compositor_clear_damage(struct voxel_compositor *compositor);
 void voxel_compositor_compose(struct voxel_compositor *compositor,
                               struct voxel_rect clip);
 int voxel_compositor_present(struct voxel_compositor *compositor,

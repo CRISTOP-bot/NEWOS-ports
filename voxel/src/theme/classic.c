@@ -232,3 +232,87 @@ void voxel_ui_dialog(struct voxel_surface *s,struct voxel_ui_rect r,
     voxel_ui_text(s,r.x+25,r.y+48,message,VOXEL_UI_TEXT);
     voxel_ui_button(s,(struct voxel_ui_rect){r.x+r.width-78,r.y+r.height-31,66,23},"OK",0);
 }
+
+void voxel_ui_checkbox(struct voxel_surface *s, struct voxel_ui_rect r,
+                       const char *label, int checked)
+{
+    size_t n=0;
+    if (!valid(s)) return;
+    if (label) while (label[n]) ++n;
+    rect(s, r.x, r.y + MAX(0,(r.height-13)/2), 13, 13, VOXEL_UI_FACE);
+    voxel_ui_bevel(s, (struct voxel_ui_rect){r.x, r.y + MAX(0,(r.height-13)/2), 13, 13}, 1);
+    if (checked) {
+        voxel_ui_text(s, r.x + 3, r.y + MAX(0,(r.height-13)/2) + 2, "X", VOXEL_UI_TEXT);
+    }
+    voxel_ui_text(s, r.x + 18, r.y + MAX(3,(r.height-7)/2), label, VOXEL_UI_TEXT);
+}
+
+void voxel_ui_radio(struct voxel_surface *s, struct voxel_ui_rect r,
+                    const char *label, int selected)
+{
+    size_t n=0;
+    int32_t cx, cy;
+    if (!valid(s)) return;
+    if (label) while (label[n]) ++n;
+    cx = r.x + 6;
+    cy = r.y + (r.height > 13 ? (r.height-13)/2 : 0) + 6;
+    rect(s, cx-6, cy-6, 13, 13, VOXEL_UI_FACE);
+    voxel_ui_bevel(s, (struct voxel_ui_rect){cx-6, cy-6, 13, 13}, 1);
+    if (selected) {
+        rect(s, cx-3, cy-3, 7, 7, VOXEL_UI_NAVY);
+    }
+    voxel_ui_text(s, r.x + 18, r.y + MAX(3,(r.height-7)/2), label, VOXEL_UI_TEXT);
+}
+
+void voxel_ui_progress(struct voxel_surface *s, struct voxel_ui_rect r,
+                       uint32_t value, uint32_t maximum)
+{
+    uint32_t fill;
+    if (!valid(s) || r.width < 4 || r.height < 4) return;
+    rect(s, r.x, r.y, r.width, r.height, VOXEL_UI_FACE);
+    voxel_ui_bevel(s, r, 1);
+    if (maximum == 0) maximum = 1;
+    if (value > maximum) value = maximum;
+    fill = (uint32_t)((uint64_t)(r.width - 4) * value / maximum);
+    if (fill) rect(s, r.x + 2, r.y + 2, (int32_t)fill, r.height - 4,
+                   VOXEL_UI_SELECTION);
+}
+
+void voxel_ui_scrollbar(struct voxel_surface *s, struct voxel_ui_rect r,
+                        uint32_t value, uint32_t maximum, int vertical)
+{
+    uint32_t thumb;
+    if (!valid(s) || r.width < 8 || r.height < 8) return;
+    rect(s, r.x, r.y, r.width, r.height, VOXEL_UI_FACE);
+    voxel_ui_bevel(s, r, 1);
+    if (maximum == 0) maximum = 1;
+    if (value > maximum) value = maximum;
+    if (vertical) {
+        thumb = (uint32_t)((uint64_t)(r.height - 16) * value / maximum);
+        if (thumb < 8) thumb = 8;
+        rect(s, r.x + 2, r.y + 2 + (int32_t)thumb, r.width - 4, 12, VOXEL_UI_MID);
+        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2, r.y + 2 + (int32_t)thumb,
+                       r.width - 4, 12}, 0);
+    } else {
+        thumb = (uint32_t)((uint64_t)(r.width - 16) * value / maximum);
+        if (thumb < 8) thumb = 8;
+        rect(s, r.x + 2 + (int32_t)thumb, r.y + 2, 12, r.height - 4, VOXEL_UI_MID);
+        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2 + (int32_t)thumb,
+                       r.y + 2, 12, r.height - 4}, 0);
+    }
+}
+
+void voxel_ui_text_field(struct voxel_surface *s, struct voxel_ui_rect r,
+                         const char *text, uint32_t caret)
+{
+    size_t n=0;
+    if (!valid(s) || r.width < 8 || r.height < 12) return;
+    rect(s, r.x, r.y, r.width, r.height, VOXEL_UI_WHITE);
+    voxel_ui_bevel(s, r, 1);
+    if (text) while (text[n]) ++n;
+    voxel_ui_text(s, r.x + 4, r.y + MAX(3,(r.height-7)/2), text ? text : "", VOXEL_UI_TEXT);
+    if (caret <= n) {
+        int32_t cx = r.x + 4 + (int32_t)caret * 6;
+        rect(s, cx, r.y + 3, 1, r.height - 6, VOXEL_UI_TEXT);
+    }
+}

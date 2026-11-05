@@ -29,6 +29,11 @@ int voxel_compositor_init(struct voxel_compositor *compositor,
     compositor->stride_pixels = stride_pixels;
     compositor->output = output;
     compositor->layer_count = 0;
+    compositor->has_dirty = 0;
+    compositor->dirty.x = 0;
+    compositor->dirty.y = 0;
+    compositor->dirty.width = 0;
+    compositor->dirty.height = 0;
     return 0;
 }
 
@@ -84,6 +89,36 @@ void voxel_compositor_set_visible(struct voxel_compositor *compositor,
         compositor->layers[index].visible = (uint8_t)(visible != 0);
 }
 
+void voxel_compositor_damage(struct voxel_compositor *compositor,
+                            struct voxel_rect rect)
+{
+    if (!compositor) return;
+    if (!compositor->has_dirty) {
+        compositor->dirty = rect;
+        compositor->has_dirty = 1;
+        return;
+    }
+    {
+        int32_t x0 = compositor->dirty.x < rect.x ? compositor->dirty.x : rect.x;
+        int32_t y0 = compositor->dirty.y < rect.y ? compositor->dirty.y : rect.y;
+        int32_t x1 = compositor->dirty.x + (int32_t)compositor->dirty.width;
+        int32_t rx1 = rect.x + (int32_t)rect.width;
+        if (rx1 > x1) x1 = rx1;
+        int32_t y1 = compositor->dirty.y + (int32_t)compositor->dirty.height;
+        int32_t ry1 = rect.y + (int32_t)rect.height;
+        if (ry1 > y1) y1 = ry1;
+        compositor->dirty.x = x0;
+        compositor->dirty.y = y0;
+        compositor->dirty.width = (uint32_t)(x1 - x0);
+        compositor->dirty.height = (uint32_t)(y1 - y0);
+    }
+}
+
+void voxel_compositor_clear_damage(struct voxel_compositor *compositor)
+{
+    if (compositor) compositor->has_dirty = 0;
+}
+
 static uint32_t blend(uint32_t dst, uint32_t src, uint32_t alpha)
 {
     uint32_t inv = 255u - alpha;
@@ -102,6 +137,16 @@ void voxel_compositor_compose(struct voxel_compositor *compositor,
     uint32_t y;
     if (!compositor || !compositor->output || !clip.width || !clip.height)
         return;
+    if (compositor->has_dirty) {
+        int32_t dx0 = compositor->dirty.x;
+        int32_t dy0 = compositor->dirty.y;
+        int32_t dx1 = dx0 + (int32_t)compositor->dirty.width;
+        int32_t dy1 = dy0 + (int32_t)compositor->dirty.height;
+        if (dx0 > clip.x) clip.x = dx0;
+        if (dy0 > clip.y) clip.y = dy0;
+        if (dx1 < clip.x + (int32_t)clip.width) clip.width = (uint32_t)(dx1 - clip.x);
+        if (dy1 < clip.y + (int32_t)clip.height) clip.height = (uint32_t)(dy1 - clip.y);
+    }
     x0 = clip.x;
     y0 = clip.y;
     x1 = x0 + (int64_t)clip.width;
@@ -139,6 +184,7 @@ void voxel_compositor_compose(struct voxel_compositor *compositor,
             out[x] = color;
         }
     }
+    voxel_compositor_clear_damage(compositor);
 }
 
 int voxel_compositor_present(struct voxel_compositor *compositor,

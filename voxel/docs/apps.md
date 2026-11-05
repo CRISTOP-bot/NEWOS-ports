@@ -13,4 +13,10 @@ The application modules are hosted in-process by the VOXEL demonstration. They a
 | Editor | Bounded text buffer, on-screen key input and NEWOS read/write callbacks. | Fixed-size buffer; Save creates `/notes.txt` initially; Open reads current path or `/etc/version`. |
 | Image Viewer | Loads and renders BMP via a bounded decoder. | Strict uncompressed 24-bit BMP, maximum decoded storage 64×48. |
 
-The pinned NEWOS ABI verified for VOXEL has framebuffer, mouse, directory/file, and spawn syscalls, but no GUI keyboard read/grab or console-ownership calls. Text entry therefore uses a mouse-operated virtual keyboard. The app registry is built into the VOXEL process; separate `.new` packages, a real terminal session/window service, process output redirection, and desktop session integration remain unimplemented.
+The pinned NEWOS ABI now also provides GUI keyboard read/grab
+(`SYS_KBD_GRAB`/`SYS_KBD_READ`, 460/461) and console ownership
+(`SYS_CONSOLE_GUI`, 462); the demo claims both. Text entry still uses the
+on-screen keyboard for complex input, while single-key shortcuts work through
+the new backend. The app registry is built into the VOXEL process; separate
+`.new` packages, a real terminal session/window service, process output
+redirection, and desktop session integration remain unimplemented.

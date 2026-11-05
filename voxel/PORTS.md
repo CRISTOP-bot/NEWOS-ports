@@ -51,9 +51,10 @@ voxel --frames 60    # render 60 frames, print the completion marker, exit
 ```
 
 The demo needs a framebuffer (`SYS_FBINFO`/`SYS_FBWRITE`, 453/454) and reads
-the pointer through `SYS_MOUSE_GET` (455). It has no keyboard API: text entry
-uses the on-screen keyboard, because the kernel does not expose GUI key
-events to userland.
+the pointer through `SYS_MOUSE_GET` (455). It now also claims the PS/2
+keyboard through `SYS_KBD_GRAB`/`SYS_KBD_READ` (460/461) and the framebuffer
+console through `SYS_CONSOLE_GUI` (462); text entry still uses the on-screen
+keyboard for complex input, while single-key shortcuts (q/Escape) exit.
 
 ## Scope
 

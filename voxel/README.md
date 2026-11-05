@@ -17,7 +17,10 @@ This is an early graphics foundation—not a desktop environment or a complete g
 
 ## Not implemented / limitations
 
-- **VOXEL has no keyboard-event input.** Current NEWOS userspace exposes no keyboard-event syscall to the program; the sleep helper is not an input API.
+- **Keyboard input is now supported** through NEWOS `SYS_KBD_GRAB` (460) and
+  `SYS_KBD_READ` (461): the demo claims the PS/2 keyboard, reads decoded
+  bytes non-blockingly, and exits on `q`/Escape. Text fields still fall back to
+  the on-screen keyboard for complex entry.
 - **No GPU acceleration, window server, or full font rendering.** VOXEL is a CPU software compositor; its tiny 5×7 bitmap font is for this demo, not a complete desktop or general-purpose OpenGL implementation.
 - **Target behavior needs target-specific validation.** A host-side core-test pass does not demonstrate that the NEWOS executable builds correctly or runs in QEMU; cross-build, package installation, and QEMU runtime evidence must be checked separately.
 - The demo requires a NEWOS boot with a supported Limine framebuffer of at least 640×480 and a working PS/2 mouse for interaction. It is a standalone program, not integrated into NEWOS's shell/session startup.
