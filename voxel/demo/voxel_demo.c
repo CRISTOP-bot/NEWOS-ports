@@ -2,6 +2,7 @@
 #include "voxel/compositor.h"
 #include "voxel/input.h"
 #include "voxel/app.h"
+#include "voxel/keymap.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -44,6 +45,9 @@ static int active_app=-1, menu_open=0;
 static struct app_window *dragging=0;
 static int32_t drag_dx,drag_dy;
 static uint32_t previous_buttons=0;
+static uint64_t previous_pointer_seq=0;
+static int needs_full_frame=1;
+static struct voxel_key_decoder keydecoder;
 static const char no_fb[]="VOXEL: no supported NEWOS framebuffer; boot with Limine graphics.\n";
 static const char no_space[]="VOXEL: unable to initialize classic desktop surfaces.\n";
 static const char present_error[]="VOXEL: framebuffer presentation failed.\n";
@@ -83,16 +87,17 @@ static void draw_wallpaper(struct voxel_surface *s)
     uint32_t y, x;
     if (!s || !s->pixels) return;
     for (y = 0; y < s->height; ++y) {
-        /* vertical gradient from navy to teal */
+        /* Rich gradient: deep blue at top to teal at bottom */
         uint32_t t = (uint32_t)((uint64_t)y * 255u / (s->height ? s->height - 1 : 1));
         uint32_t r = (uint32_t)(0x00u + (0x00u - 0x00u) * t / 255u);
-        uint32_t g = (uint32_t)(0x18u + (0x80u - 0x18u) * t / 255u);
-        uint32_t b = (uint32_t)(0x28u + (0x80u - 0x28u) * t / 255u);
+        uint32_t g = (uint32_t)(0x10u + (0x70u - 0x10u) * t / 255u);
+        uint32_t b = (uint32_t)(0x40u + (0x90u - 0x40u) * t / 255u);
         uint32_t color = (r << 16) | (g << 8) | b;
         for (x = 0; x < s->width; ++x) {
-            /* subtle diagonal stripe pattern */
+            /* Subtle diagonal wave pattern */
             uint32_t c = color;
-            if (((x + y) / 16u) % 2u == 0u) c = (c & 0xfefefe) >> 1; /* darken slightly */
+            uint32_t wave = (uint32_t)((x * 3 + y * 2) / 24u) % 2u;
+            if (wave == 0u) c = (c & 0xfefefe) >> 1;
             s->pixels[(size_t)y * s->stride_pixels + x] = c;
         }
     }
@@ -158,10 +163,48 @@ static void draw_popup(void)
     }
 }
 
+/* Classic two-tone arrow. 'X' = black outline, 'W' = white fill,
+ * '.' = transparent. The tip is at (0,0), i.e. the pointer's hotspot. */
+static const char *const cursor_arrow[24] = {
+    "X...............",
+    "XX..............",
+    "XWX.............",
+    "XWWX............",
+    "XWWWX...........",
+    "XWWWWX..........",
+    "XWWWWWX.........",
+    "XWWWWWWX........",
+    "XWWWWWWWX.......",
+    "XWWWWWWWWX......",
+    "XWWWWWWWWWX.....",
+    "XWWWWWWWWWWX....",
+    "XWWWWWWWWWWWX...",
+    "XWWWWWWWWWWWWX..",
+    "XWWWWWWWWWWWWWX.",
+    "XWWWWWWWWWWWWWWX",
+    "XWWWWXXWWWWW....",
+    "XWWX..XWWX......",
+    "XWX....XWX......",
+    "XX......XX......",
+    "X...............",
+    "................",
+    "................",
+    "................"
+};
+
 static void draw_pointer(void)
 {
-    /* Cursor is composited via direct blit in the main loop; nothing here. */
+    uint32_t y, x;
     voxel_surface_clear(&cursor,0x00000000u);
+    /* Redrawn only when the layer moves; the mask is constant, but the
+     * surface is rebuilt here so the compositor always sees opaque pixels. */
+    for(y=0;y<CURSOR_H;++y) {
+        for(x=0;x<CURSOR_W;++x) {
+            char c=cursor_arrow[y][x];
+            if(c=='X') (void)voxel_surface_put_pixel(&cursor,(int32_t)x,(int32_t)y,0xff000000u);
+            else if(c=='W') (void)voxel_surface_put_pixel(&cursor,(int32_t)x,(int32_t)y,0xffffffffu);
+        }
+    }
 }
 
 static int point_in(int32_t x,int32_t y,int32_t rx,int32_t ry,int32_t rw,int32_t rh)
@@ -311,7 +354,12 @@ int main(int argc,char **argv)
         voxel_compositor_set_visible(&compositor,(uint32_t)(i+1),apps[i].visible);
         if(apps[i].visible) (void)voxel_compositor_raise(&compositor,(uint32_t)(i+1));
     }
-    voxel_compositor_set_visible(&compositor,(uint32_t)(APP_COUNT+1),0);
+    /* Hide the menu by surface, never by a hard-coded layer index: raising
+     * visible apps above reorders the array before the menu/cursor are added. */
+    {
+        uint32_t mi=layer_for_surface(&menu_surface);
+        if(mi!=UINT32_MAX) voxel_compositor_set_visible(&compositor,mi,0);
+    }
     active_app=VOXEL_APP_EXPLORER;
     {
         uint32_t cursor_layer=layer_for_surface(&cursor);
@@ -322,10 +370,13 @@ int main(int argc,char **argv)
         }
     }
     origin_x=(uint32_t)((fb.info.width-VIEW_W)/2u);origin_y=(uint32_t)((fb.info.height-VIEW_H)/2u);
+    voxel_key_decoder_init(&keydecoder);
     (void)voxel_console_gui_claim();
     (void)voxel_keyboard_grab();
     (void)os_write(ready,sizeof(ready)-1u);
     while(frame_limit==0||frame<frame_limit) {
+        int full_redraw=needs_full_frame;
+        int changed=full_redraw;
         if(voxel_pointer_poll(&pointer)==0) {
             int32_t mx=pointer.x-(int32_t)origin_x,my=pointer.y-(int32_t)origin_y;
             if (mx < 0) mx = 0;
@@ -335,10 +386,20 @@ int main(int argc,char **argv)
             uint32_t ci=layer_for_surface(&cursor);
             int pressed=(pointer.buttons&1u)&&!(previous_buttons&1u);
             if(ci==UINT32_MAX)return 1;
+            if(pointer.sequence!=previous_pointer_seq) {
+                int32_t ox=compositor.layers[ci].x,oy=compositor.layers[ci].y;
+                if(ox!=mx||oy!=my) {
+                    voxel_compositor_damage(&compositor,(struct voxel_rect){ox,oy,CURSOR_W,CURSOR_H});
+                    voxel_compositor_damage(&compositor,(struct voxel_rect){mx,my,CURSOR_W,CURSOR_H});
+                    changed=1;
+                }
+                previous_pointer_seq=pointer.sequence;
+            }
             compositor.layers[ci].x=mx;compositor.layers[ci].y=my;(void)voxel_compositor_raise(&compositor,ci);
-            if(pressed) pointer_click(mx,my,pointer.buttons);
+            if(pressed) { pointer_click(mx,my,pointer.buttons); full_redraw=1;changed=1; }
             if(!(pointer.buttons&1u)) dragging=0;
             if(dragging&&!dragging->maximized) {
+                full_redraw=1;changed=1;
                 dragging->x=mx-drag_dx;dragging->y=my-drag_dy;
                 if(dragging->x<0)dragging->x=0;
                 if(dragging->y<0)dragging->y=0;
@@ -359,38 +420,42 @@ int main(int argc,char **argv)
             }
         }
         {
-            uint32_t mi=layer_for_surface(&menu_surface),ci=layer_for_surface(&cursor);
+            uint32_t mi=layer_for_surface(&menu_surface),ci;
             if(mi!=UINT32_MAX) {
                 compositor.layers[mi].y=0;
                 voxel_compositor_set_visible(&compositor,mi,menu_open);
                 (void)voxel_compositor_raise(&compositor,mi);
             }
+            /* raise() above shifts indices, so look the cursor up again.
+             * Setting visibility with the stale index hid the cursor. */
+            ci=layer_for_surface(&cursor);
             if(ci!=UINT32_MAX){voxel_compositor_set_visible(&compositor,ci,1);(void)voxel_compositor_raise(&compositor,ci);}
         }
         {
             char keys[64];
             int kn=voxel_keyboard_read(keys,64);
             for(int ki=0;ki<kn;++ki) {
-                if(keys[ki]==27||keys[ki]=='q') { frame_limit=frame?frame:1; }
+                uint32_t key=voxel_key_decode(&keydecoder,(unsigned char)keys[ki]);
+                int consumed=0;
+                if(!key) continue;              /* incomplete escape sequence */
+                if(active_app>=0)
+                    consumed=voxel_app_key(&app_contexts[active_app],
+                                           (enum voxel_app_id)active_app,key);
+                if(consumed) { full_redraw=1;changed=1; }
+                /* An app that consumes 'q' is typing; only unconsumed
+                 * q/Escape leave the desktop. */
+                else if(key==VOXEL_KEY_ESCAPE||key=='q') frame_limit=frame?frame:1;
             }
         }
-        voxel_compositor_compose(&compositor,full);
-        {
-            /* Cursor drawn directly onto output (guaranteed visible on top). */
-            uint32_t ci=layer_for_surface(&cursor);
-            int32_t mx = (ci!=UINT32_MAX)?compositor.layers[ci].x:(int32_t)(VIEW_W/2);
-            int32_t my = (ci!=UINT32_MAX)?compositor.layers[ci].y:(int32_t)(VIEW_H/2);
-            uint32_t yy;
-            for (yy=0; yy<22; ++yy) {
-                uint32_t xx;
-                for (xx=0; xx<=yy/2 && xx<CURSOR_W; ++xx) {
-                    int edge = (xx==0||xx==yy/2||yy==21);
-                    compositor.output[(size_t)(my+yy)*VIEW_W+(size_t)(mx+xx)] = edge ? 0x00000000u : 0x00ffffffu;
-                }
+        if(doom_launch_requested) { full_redraw=1;changed=1; }
+        if(full_redraw) voxel_compositor_damage(&compositor,full);
+        /* Idle frames skip both compose() and the fbwrite loop entirely.
+         * Cursor-only motion recomposes just the old and new 16x24 rects. */
+        if(changed) {
+            if(voxel_compositor_present_dirty(&compositor,&fb,origin_x,origin_y)!=0) {
+                (void)os_write(present_error,sizeof(present_error)-1u);return 1;
             }
-        }
-        if(voxel_compositor_present(&compositor,&fb,origin_x,origin_y)!=0) {
-            (void)os_write(present_error,sizeof(present_error)-1u);return 1;
+            needs_full_frame=0;
         }
         if(doom_launch_requested){ (void)os_write(completed,sizeof(completed)-1u); return 0; }
         ++frame;if(voxel_sleep_ms(16u)<0)return 1;

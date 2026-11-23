@@ -13,10 +13,14 @@ The application modules are hosted in-process by the VOXEL demonstration. They a
 | Editor | Bounded text buffer, on-screen key input and NEWOS read/write callbacks. | Fixed-size buffer; Save creates `/notes.txt` initially; Open reads current path or `/etc/version`. |
 | Image Viewer | Loads and renders BMP via a bounded decoder. | Strict uncompressed 24-bit BMP, maximum decoded storage 64×48. |
 
-The pinned NEWOS ABI now also provides GUI keyboard read/grab
+The pinned NEWOS ABI also provides GUI keyboard read/grab
 (`SYS_KBD_GRAB`/`SYS_KBD_READ`, 460/461) and console ownership
-(`SYS_CONSOLE_GUI`, 462); the demo claims both. Text entry still uses the
-on-screen keyboard for complex input, while single-key shortcuts work through
-the new backend. The app registry is built into the VOXEL process; separate
+(`SYS_CONSOLE_GUI`, 462); the demo claims both. `voxel/keymap.h` decodes raw
+bytes (including arrow/Delete escape sequences) into `VOXEL_KEY_*` codes and
+routes them to the focused app's `key()` handler, so Run, Console and Editor
+accept real typing, Backspace and Enter. The on-screen keyboard remains as an
+alternative. Only unconsumed `q`/Escape exit the desktop, so typing `q` into
+a text field no longer quits VOXEL. The app registry is built into the VOXEL
+process; separate
 `.new` packages, a real terminal session/window service, process output
 redirection, and desktop session integration remain unimplemented.

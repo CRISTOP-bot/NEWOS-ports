@@ -48,5 +48,10 @@ void voxel_compositor_compose(struct voxel_compositor *compositor,
 int voxel_compositor_present(struct voxel_compositor *compositor,
                              struct voxel_framebuffer *fb,
                              uint32_t origin_x, uint32_t origin_y);
+/* Compose only the accumulated damage and present just that rectangle.
+ * Returns 0 immediately when nothing is dirty, so idle frames cost nothing. */
+int voxel_compositor_present_dirty(struct voxel_compositor *compositor,
+                                   struct voxel_framebuffer *fb,
+                                   uint32_t origin_x, uint32_t origin_y);
 
 #endif

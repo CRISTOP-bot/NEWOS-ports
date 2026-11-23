@@ -1,5 +1,7 @@
 #include "voxel/compositor.h"
 #include "voxel/classic_ui.h"
+#include "voxel/keymap.h"
+#include "voxel/app.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -122,6 +124,54 @@ static void test_present_bounds(void)
 }
 
 
+static void test_present_dirty_only(void)
+{
+    uint32_t output[16] = {0};
+    struct voxel_compositor compositor;
+    struct voxel_framebuffer fb = {{0}};
+    fb.info.width = 10;
+    fb.info.height = 8;
+    assert(voxel_compositor_init(&compositor, 4, 4, 4, output, 16) == 0);
+
+    present_calls = 0;
+    assert(voxel_compositor_present_dirty(&compositor, &fb, 0, 0) == 0);
+    assert(present_calls == 0); /* idle frames reach no backend call */
+
+    voxel_compositor_damage(&compositor, (struct voxel_rect){1, 1, 2, 2});
+    assert(voxel_compositor_present_dirty(&compositor, &fb, 2, 3) == 0);
+    assert(present_calls == 1);
+    assert(present_x == 3 && present_y == 4);
+    assert(present_width == 2 && present_height == 2);
+    assert(present_pixels == output + 1 * 4 + 1);
+    assert(compositor.has_dirty == 0);
+}
+
+static void test_key_decode(void)
+{
+    struct voxel_key_decoder d;
+    voxel_key_decoder_init(&d);
+
+    assert(voxel_key_decode(&d, 'a') == 'a');
+    assert(voxel_key_decode(&d, 0x7f) == VOXEL_KEY_BACKSPACE);
+    assert(voxel_key_decode(&d, '\r') == VOXEL_KEY_ENTER);
+    assert(voxel_key_decode(&d, '\t') == VOXEL_KEY_TAB);
+    assert(voxel_key_decode(&d, 1) == (VOXEL_KEY_CTRL | 'a'));
+
+    /* Arrow bytes are decoded without leaking intermediate zeros. */
+    assert(voxel_key_decode(&d, 0x1b) == 0);
+    assert(voxel_key_decode(&d, '[') == 0);
+    assert(voxel_key_decode(&d, 'A') == VOXEL_KEY_UP);
+    assert(voxel_key_decode(&d, 0x1b) == 0);
+    assert(voxel_key_decode(&d, '[') == 0);
+    assert(voxel_key_decode(&d, '3') == 0);
+    assert(voxel_key_decode(&d, '~') == VOXEL_KEY_DELETE);
+
+    /* Lone ESC is delivered, then the following byte is replayed. */
+    assert(voxel_key_decode(&d, 0x1b) == 0);
+    assert(voxel_key_decode(&d, 'x') == VOXEL_KEY_ESCAPE);
+    assert(voxel_key_decode(&d, 0) == 'x');
+}
+
 static void test_classic_ui_widgets(void)
 {
     uint32_t pixels[80u * 60u];
@@ -158,6 +208,8 @@ int main(void)
     test_surface_bounds_and_stride();
     test_composition_clip_alpha_order();
     test_present_bounds();
+    test_present_dirty_only();
+    test_key_decode();
     test_classic_ui_widgets();
     test_invalid_compositor_arguments();
     puts("VOXEL core tests: PASS");

@@ -10,6 +10,8 @@ This is an early graphics foundation—not a desktop environment or a complete g
 - A bounded 16-layer compositor, per-layer visibility, ordering, clipping and straight-alpha blending.
 - A NEWOS x86_64 `int $0x80` framebuffer backend using `SYS_FBINFO` (453) and `SYS_FBWRITE` (454). Frames are submitted as XRGB8888 words; NEWOS converts these to the active 24- or 32-bpp panel layout.
 - A NEWOS mouse snapshot reader using `SYS_MOUSE_GET` (455), and a sleep helper using `SYS_SLEEP` (35).
+- Damage-aware presentation: the demo marks only the old/new cursor rectangles on pointer motion, and skips both compose and `SYS_FBWRITE` entirely on idle frames. Full damage is used for clicks, drags and keyboard input.
+- A real two-tone arrow cursor rendered into the 16×24 ARGB surface and alpha-blended by the compositor, replacing the old direct write into the output buffer (which could run past the right/bottom edge).
 - Reusable classic UI primitives in `include/voxel/classic_ui.h` and `src/theme/classic.c`: bitmap text, bevels, square buttons, titlebars, window frames, menu bars and popups, icons, taskbar, Start menu, and dialogs.
 - `voxel.elf`, a mouse-driven classic desktop demo with task switching, Settings/About windows, caption controls, and title-bar dragging.
 - Optional `voxel-tinygl.elf`, a TinyGL triangle rendering smoke demo. TinyGL is pinned as a submodule at `c2e48591a6bfba1a85f1b87a78dcf1abf7dff57a`; its allocator is a bounded 16 MiB single-threaded arena.
@@ -17,10 +19,12 @@ This is an early graphics foundation—not a desktop environment or a complete g
 
 ## Not implemented / limitations
 
-- **Keyboard input is now supported** through NEWOS `SYS_KBD_GRAB` (460) and
-  `SYS_KBD_READ` (461): the demo claims the PS/2 keyboard, reads decoded
-  bytes non-blockingly, and exits on `q`/Escape. Text fields still fall back to
-  the on-screen keyboard for complex entry.
+- **Keyboard input is fully wired into the apps** through NEWOS
+  `SYS_KBD_GRAB` (460) and `SYS_KBD_READ` (461): the demo claims the PS/2
+  keyboard, decodes bytes and escape sequences with `voxel/keymap.h`, and
+  routes them to the focused app's `key()` handler. Run, Console and Editor
+  accept real typing, Backspace and Enter; unconsumed `q`/Escape leave the
+  desktop. The on-screen keyboard remains available alongside it.
 - **No GPU acceleration, window server, or full font rendering.** VOXEL is a CPU software compositor; its tiny 5×7 bitmap font is for this demo, not a complete desktop or general-purpose OpenGL implementation.
 - **Target behavior needs target-specific validation.** A host-side core-test pass does not demonstrate that the NEWOS executable builds correctly or runs in QEMU; cross-build, package installation, and QEMU runtime evidence must be checked separately.
 - The demo requires a NEWOS boot with a supported Limine framebuffer of at least 640×480 and a working PS/2 mouse for interaction. It is a standalone program, not integrated into NEWOS's shell/session startup.
@@ -64,7 +68,7 @@ Requires a NEWOS checkout with its `toolchain/newos-gcc` wrapper and `user/lib/a
 make NEWOS_ROOT=/path/to/NEWOS demo
 ```
 
-The resulting executable is `build/voxel.elf`. Target run [39194826040](https://github.com/CRISTOP-bot/voxel/actions/runs/39194826040) exposed that the link wrapper checked for `crt0.o` but did not pass it to the linker; the ELF had no defined `_start` and faulted in QEMU. This was corrected in [commit `0be80a9`](https://github.com/CRISTOP-bot/voxel/commit/0be80a975154951eaa23b247b714a52390ddc332). In [run 39196790955](https://github.com/CRISTOP-bot/voxel/actions/runs/39196790955), the ELF entry matched a defined `_start`, the package installed, and the one-frame demo completed in QEMU. A non-fatal RWX LOAD-segment linker warning remains.
+The resulting executable is `build/voxel.elf`. Target run [39194826040](https://github.com/CRISTOP-bot/voxel/actions/runs/39194826040) exposed that the link wrapper checked for `crt0.o` but did not pass it to the linker; the ELF had no defined `_start` and faulted in QEMU. This was corrected in [commit `0be80a9`](https://github.com/CRISTOP-bot/voxel/commit/0be80a975154951eaa23b247b714a52390ddc332). In [run 39196790955](https://github.com/CRISTOP-bot/voxel/actions/runs/39196790955), the ELF entry matched a defined `_start`, the package installed, and the one-frame demo completed in QEMU. The regular demo now links with `voxel.ld`, which declares separate R+X and R+W `PT_LOAD` segments; the old non-fatal RWX LOAD warning is gone.
 
 ### Optional TinyGL demo
 

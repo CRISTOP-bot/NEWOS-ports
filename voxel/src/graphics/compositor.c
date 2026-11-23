@@ -202,3 +202,42 @@ int voxel_compositor_present(struct voxel_compositor *compositor,
                                   compositor->output,
                                   compositor->stride_pixels);
 }
+
+int voxel_compositor_present_dirty(struct voxel_compositor *compositor,
+                                   struct voxel_framebuffer *fb,
+                                   uint32_t origin_x, uint32_t origin_y)
+{
+    int64_t x0, y0, x1, y1;
+    struct voxel_rect dirty, full;
+
+    if (!compositor || !fb || !compositor->has_dirty)
+        return 0;
+
+    /* Snapshot before compose(): it consumes the damage flag. */
+    x0 = compositor->dirty.x;
+    y0 = compositor->dirty.y;
+    x1 = x0 + (int64_t)compositor->dirty.width;
+    y1 = y0 + (int64_t)compositor->dirty.height;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > (int64_t)compositor->width) x1 = compositor->width;
+    if (y1 > (int64_t)compositor->height) y1 = compositor->height;
+    if (x0 >= x1 || y0 >= y1)
+        return 0;
+
+    dirty.x = (int32_t)x0;
+    dirty.y = (int32_t)y0;
+    dirty.width = (uint32_t)(x1 - x0);
+    dirty.height = (uint32_t)(y1 - y0);
+    full = (struct voxel_rect){0, 0, compositor->width, compositor->height};
+
+    /* compose() clips to the same damage rect, then clears it. */
+    voxel_compositor_compose(compositor, full);
+
+    return voxel_framebuffer_blit(fb, origin_x + dirty.x, origin_y + dirty.y,
+                                  dirty.width, dirty.height,
+                                  compositor->output +
+                                      (size_t)dirty.y * compositor->stride_pixels +
+                                      (size_t)dirty.x,
+                                  compositor->stride_pixels);
+}
