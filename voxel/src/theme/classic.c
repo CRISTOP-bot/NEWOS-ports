@@ -85,6 +85,26 @@ void voxel_ui_text(struct voxel_surface *s, int32_t x, int32_t y,
     }
 }
 
+/* Draw text rotated 90 degrees counter-clockwise (reads bottom-to-top),
+ * used by the Start menu's classic vertical banner. */
+static void text_rotated(struct voxel_surface *s, int32_t x, int32_t y,
+                         const char *str, uint32_t color)
+{
+    int32_t cy = y;
+    const char *p;
+    if (!valid(s) || !str) return;
+    for (p = str; *p; ++p) {
+        int row, col;
+        for (row = 0; row < 7; ++row) {
+            uint8_t bits = row_bits(*p, row);
+            for (col = 0; col < 5; ++col)
+                if (bits & (1u << (4 - col)))
+                    rect(s, x + row, cy - col, 1, 1, color);
+        }
+        cy -= 8;
+    }
+}
+
 void voxel_ui_bevel(struct voxel_surface *s, struct voxel_ui_rect r, int pressed)
 {
     uint32_t hi = pressed ? VOXEL_UI_DARK : VOXEL_UI_LIGHT;
@@ -136,7 +156,11 @@ void voxel_ui_titlebar(struct voxel_surface *s, struct voxel_ui_rect r,
         }
         rect(s, r.x, r.y + (int32_t)i, r.width, 1, (r1 << 16) | (g1 << 8) | b1);
     }
-    voxel_ui_text(s, r.x + 5, r.y + MAX(2, (r.height - 7) / 2), title, VOXEL_UI_WHITE);
+    /* Small application glyph at the left of the title. */
+    rect(s, r.x + 4, r.y + MAX(3,(r.height-11)/2), 11, 11, VOXEL_UI_FACE);
+    rect(s, r.x + 5, r.y + MAX(3,(r.height-11)/2) + 1, 9, 9, VOXEL_UI_NAVY);
+    rect(s, r.x + 7, r.y + MAX(3,(r.height-11)/2) + 3, 5, 5, VOXEL_UI_WHITE);
+    voxel_ui_text(s, r.x + 18, r.y + MAX(2, (r.height - 7) / 2), title, VOXEL_UI_WHITE);
     b = (struct voxel_ui_rect){r.x + r.width - 17, r.y + 3, 14, r.height - 6};
     voxel_ui_button(s, b, "X", 0);
     b.x -= 16; voxel_ui_button(s, b, "+", 0);
@@ -152,6 +176,15 @@ void voxel_ui_window_frame(struct voxel_surface *s, struct voxel_ui_rect r,
     rect(s, r.x, r.y, r.width, r.height, VOXEL_UI_FACE);
     voxel_ui_bevel(s, r, 0);
     voxel_ui_titlebar(s, (struct voxel_ui_rect){r.x + 3, r.y + 3, r.width - 6, TITLE_HEIGHT}, title, active);
+    /* Diagonal resize grip in the bottom-right corner. */
+    {
+        int32_t gx = r.x + r.width - 14, gy = r.y + r.height - 14;
+        int k;
+        for (k = 0; k < 5; ++k) {
+            rect(s, gx + k*2, gy + 10, 2, 2, VOXEL_UI_WHITE);
+            rect(s, gx + 10 - k*2, gy + k*2, 2, 2, VOXEL_UI_WHITE);
+        }
+    }
 }
 
 void voxel_ui_menu_bar(struct voxel_surface *s,int32_t x,int32_t y,int32_t width,
@@ -166,24 +199,38 @@ void voxel_ui_menu_bar(struct voxel_surface *s,int32_t x,int32_t y,int32_t width
 
 static void icon_computer(struct voxel_surface *s,int32_t x,int32_t y)
 {
-    rect(s,x+3,y+2,27,19,VOXEL_UI_DARK); rect(s,x+5,y+4,23,14,VOXEL_UI_WHITE);
-    rect(s,x+7,y+6,19,10,0x00008080u); rect(s,x+14,y+21,5,4,VOXEL_UI_MID);
-    rect(s,x+10,y+25,14,3,VOXEL_UI_FACE);
-    rect(s,x+10,y+25,14,1,VOXEL_UI_WHITE); rect(s,x+10,y+27,14,1,VOXEL_UI_DARK);
+    /* Monitor with bezel, screen, highlight and stand. */
+    rect(s,x+2,y+1,29,21,VOXEL_UI_DARK);
+    rect(s,x+4,y+3,25,16,VOXEL_UI_FACE);
+    rect(s,x+6,y+5,21,12,0x00008080u);
+    rect(s,x+7,y+5,19,1,0x0000a0a0u);      /* screen sheen */
+    rect(s,x+7,y+6,1,10,0x00006060u);
+    rect(s,x+13,y+22,7,3,VOXEL_UI_MID);     /* stand */
+    rect(s,x+9,y+25,15,3,VOXEL_UI_FACE);    /* base */
+    rect(s,x+9,y+25,15,1,VOXEL_UI_WHITE);
+    rect(s,x+9,y+27,15,1,VOXEL_UI_DARK);
+    rect(s,x+26,y+18,2,2,0x0000ff00u);     /* LED */
 }
 static void icon_folder(struct voxel_surface *s,int32_t x,int32_t y)
 {
-    rect(s,x+4,y+5,13,5,0x00e8c75au); rect(s,x+2,y+8,29,19,0x00b68b25u);
-    rect(s,x+4,y+10,25,14,0x00f1d675u); rect(s,x+2,y+8,29,1,VOXEL_UI_DARK);
-    rect(s,x+2,y+26,29,1,VOXEL_UI_DARK);
+    /* Folder with raised tab, body shading and front lip. */
+    rect(s,x+3,y+4,14,3,0x00a07820u);      /* tab back */
+    rect(s,x+5,y+3,11,4,0x00e8c75au);      /* tab front */
+    rect(s,x+2,y+7,29,20,0x00806010u);     /* body shadow */
+    rect(s,x+2,y+7,29,18,0x00b68b25u);     /* body */
+    rect(s,x+4,y+10,25,13,0x00f1d675u);    /* front face */
+    rect(s,x+4,y+10,25,1,0x00ffe8a0u);     /* top highlight */
+    rect(s,x+2,y+25,29,2,0x00907018u);     /* bottom lip */
 }
 static void icon_gear(struct voxel_surface *s,int32_t x,int32_t y)
 {
-    static const uint8_t gear[7]={0x1c,0x3e,0x7f,0x7f,0x7f,0x3e,0x1c};
+    static const uint8_t gear[9]={0x18,0x3c,0x7e,0xff,0xff,0xff,0x7e,0x3c,0x18};
     int row,col;
-    for(row=0;row<7;++row) for(col=0;col<7;++col)
-        if(gear[row]&(1u<<(6-col))) rect(s,x+col*3,y+row*3,3,3,VOXEL_UI_DARK);
-    rect(s,x+9,y+9,3,3,VOXEL_UI_FACE);
+    for(row=0;row<9;++row) for(col=0;col<8;++col)
+        if(gear[row]&(1u<<(7-col))) rect(s,x+col*3,y+row*3,3,3,VOXEL_UI_DARK);
+    rect(s,x+9,y+9,6,6,VOXEL_UI_FACE);     /* hub */
+    rect(s,x+10,y+10,4,4,VOXEL_UI_MID);
+    rect(s,x+11,y+11,2,2,VOXEL_UI_WHITE);
 }
 
 void voxel_ui_icon(struct voxel_surface *s,int32_t x,int32_t y,uint32_t kind,
@@ -221,14 +268,25 @@ void voxel_ui_start_menu(struct voxel_surface *s,int32_t x,int32_t y,int selecte
 {
     static const char *const items[]={"Programs","Documents","Settings","About VOXEL"};
     int i;
-    struct voxel_ui_rect r={x,y,174,108};
+    struct voxel_ui_rect r={x,y,186,124};
     if(!valid(s)) return;
-    rect(s,r.x,r.y,r.width,r.height,VOXEL_UI_FACE); voxel_ui_bevel(s,r,0);
+    rect(s,r.x,r.y,r.width,r.height,VOXEL_UI_FACE);
+    voxel_ui_bevel(s,r,0);
+    /* Classic vertical banner on the left */
+    rect(s,x+2,y+2,24,r.height-4,VOXEL_UI_NAVY);
+    text_rotated(s,x+6,y+r.height-10,"VOXEL",VOXEL_UI_WHITE);
+    /* Separator after the banner */
+    rect(s,x+27,y+2,1,r.height-4,VOXEL_UI_MID);
     for(i=0;i<4;++i) {
-        int32_t iy=y+4+i*20;
-        if(i==selected) rect(s,x+3,iy,r.width-6,19,VOXEL_UI_SELECTION);
-        voxel_ui_text(s,x+10,iy+6,items[i],i==selected?VOXEL_UI_WHITE:VOXEL_UI_TEXT);
+        int32_t iy=y+5+i*22;
+        if(i==selected) rect(s,x+30,iy,r.width-33,20,VOXEL_UI_SELECTION);
+        /* small item glyph */
+        rect(s,x+33,iy+5,10,10,i==selected?VOXEL_UI_WHITE:VOXEL_UI_MID);
+        voxel_ui_text(s,x+47,iy+6,items[i],i==selected?VOXEL_UI_WHITE:VOXEL_UI_TEXT);
     }
+    /* Bottom separator + Shutdown row */
+    rect(s,x+30,y+r.height-26,r.width-33,1,VOXEL_UI_MID);
+    voxel_ui_text(s,x+47,y+r.height-19,"Shutdown...",VOXEL_UI_TEXT);
 }
 
 void voxel_ui_menu(struct voxel_surface *s,struct voxel_ui_rect r,
@@ -264,7 +322,12 @@ void voxel_ui_checkbox(struct voxel_surface *s, struct voxel_ui_rect r,
     rect(s, r.x, r.y + MAX(0,(r.height-13)/2), 13, 13, VOXEL_UI_FACE);
     voxel_ui_bevel(s, (struct voxel_ui_rect){r.x, r.y + MAX(0,(r.height-13)/2), 13, 13}, 1);
     if (checked) {
-        voxel_ui_text(s, r.x + 3, r.y + MAX(0,(r.height-13)/2) + 2, "X", VOXEL_UI_TEXT);
+        int32_t cy = r.y + MAX(0,(r.height-13)/2);
+        rect(s, r.x + 3, cy + 7, 2, 2, VOXEL_UI_TEXT);
+        rect(s, r.x + 5, cy + 9, 2, 2, VOXEL_UI_TEXT);
+        rect(s, r.x + 7, cy + 7, 2, 2, VOXEL_UI_TEXT);
+        rect(s, r.x + 9, cy + 5, 2, 2, VOXEL_UI_TEXT);
+        rect(s, r.x + 11, cy + 3, 2, 2, VOXEL_UI_TEXT);
     }
     voxel_ui_text(s, r.x + 18, r.y + MAX(3,(r.height-7)/2), label, VOXEL_UI_TEXT);
 }
@@ -296,8 +359,13 @@ void voxel_ui_progress(struct voxel_surface *s, struct voxel_ui_rect r,
     if (maximum == 0) maximum = 1;
     if (value > maximum) value = maximum;
     fill = (uint32_t)((uint64_t)(r.width - 4) * value / maximum);
-    if (fill) rect(s, r.x + 2, r.y + 2, (int32_t)fill, r.height - 4,
-                   VOXEL_UI_SELECTION);
+    if (fill) {
+        int32_t px;
+        for (px = 0; px < (int32_t)fill; px += 8)
+            rect(s, r.x + 2 + px, r.y + 2,
+                 ((int32_t)fill - px < 6) ? (int32_t)fill - px : 6,
+                 r.height - 4, VOXEL_UI_SELECTION);
+    }
 }
 
 void voxel_ui_scrollbar(struct voxel_surface *s, struct voxel_ui_rect r,
@@ -312,8 +380,18 @@ void voxel_ui_scrollbar(struct voxel_surface *s, struct voxel_ui_rect r,
     if (vertical) {
         thumb = (uint32_t)((uint64_t)(r.height - 16) * value / maximum);
         if (thumb < 8) thumb = 8;
-        rect(s, r.x + 2, r.y + 2 + (int32_t)thumb, r.width - 4, 12, VOXEL_UI_MID);
-        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2, r.y + 2 + (int32_t)thumb,
+        /* Up / down arrow buttons */
+        rect(s, r.x + 2, r.y + 2, r.width - 4, 12, VOXEL_UI_FACE);
+        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2, r.y + 2, r.width - 4, 12}, 0);
+        rect(s, r.x + (r.width-4)/2 - 1, r.y + 6, 3, 1, VOXEL_UI_TEXT);
+        rect(s, r.x + (r.width-4)/2 - 2, r.y + 7, 5, 1, VOXEL_UI_TEXT);
+        rect(s, r.x + 2, r.y + r.height - 14, r.width - 4, 12, VOXEL_UI_FACE);
+        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2, r.y + r.height - 14, r.width - 4, 12}, 0);
+        rect(s, r.x + (r.width-4)/2 - 2, r.y + r.height - 8, 5, 1, VOXEL_UI_TEXT);
+        rect(s, r.x + (r.width-4)/2 - 1, r.y + r.height - 9, 3, 1, VOXEL_UI_TEXT);
+        /* Thumb */
+        rect(s, r.x + 2, r.y + 16 + (int32_t)thumb, r.width - 4, 12, VOXEL_UI_MID);
+        voxel_ui_bevel(s, (struct voxel_ui_rect){r.x + 2, r.y + 16 + (int32_t)thumb,
                        r.width - 4, 12}, 0);
     } else {
         thumb = (uint32_t)((uint64_t)(r.width - 16) * value / maximum);
