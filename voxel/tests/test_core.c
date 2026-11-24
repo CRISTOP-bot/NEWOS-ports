@@ -14,6 +14,26 @@ static uint32_t present_x, present_y, present_width, present_height;
 static const uint32_t *present_pixels;
 static size_t present_stride;
 
+int voxel_framebuffer_blit_scaled(struct voxel_framebuffer *fb,
+                                  uint32_t sx, uint32_t sy,
+                                  uint32_t sw, uint32_t sh,
+                                  uint32_t vw, uint32_t vh,
+                                  const uint32_t *pixels, size_t stride_pixels)
+{
+    uint32_t x1, y1;
+    if (!fb || !vw || !vh || !fb->info.width || !fb->info.height) return -1;
+    present_x = (uint32_t)(((uint64_t)sx * fb->info.width) / vw);
+    present_y = (uint32_t)(((uint64_t)sy * fb->info.height) / vh);
+    x1 = (uint32_t)(((uint64_t)(sx+sw)*fb->info.width + vw - 1u) / vw);
+    y1 = (uint32_t)(((uint64_t)(sy+sh)*fb->info.height + vh - 1u) / vh);
+    present_width = x1 > present_x ? x1 - present_x : 0u;
+    present_height = y1 > present_y ? y1 - present_y : 0u;
+    present_pixels = pixels;
+    present_stride = stride_pixels;
+    ++present_calls;
+    return 0;
+}
+
 int voxel_framebuffer_blit(struct voxel_framebuffer *fb,
                            uint32_t x, uint32_t y,
                            uint32_t width, uint32_t height,
@@ -140,6 +160,7 @@ static void test_present_dirty_only(void)
     voxel_compositor_damage(&compositor, (struct voxel_rect){1, 1, 2, 2});
     assert(voxel_compositor_present_dirty(&compositor, &fb, 2, 3) == 0);
     assert(present_calls == 1);
+    /* A non-zero origin keeps the letterboxed 1:1 presentation. */
     assert(present_x == 3 && present_y == 4);
     assert(present_width == 2 && present_height == 2);
     assert(present_pixels == output + 1 * 4 + 1);

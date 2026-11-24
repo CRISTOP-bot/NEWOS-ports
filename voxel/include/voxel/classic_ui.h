@@ -6,6 +6,11 @@
 
 /* Reusable Win9x-style UI primitives rendered into existing VOXEL surfaces. */
 struct voxel_ui_rect { int32_t x, y, width, height; };
+struct voxel_theme_state;
+
+/* Point the widget layer at a live theme state. NULL restores the classic
+ * defaults. Settings edits the same struct, so changes apply immediately. */
+void voxel_ui_set_palette(struct voxel_theme_state *theme);
 
 #define VOXEL_UI_FACE       0x00c0c0c0u
 #define VOXEL_UI_LIGHT      0x00ffffffu

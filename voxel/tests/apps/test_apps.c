@@ -2,6 +2,7 @@
 #include "voxel/classic_ui.h"
 #include "voxel/framebuffer.h"
 int voxel_framebuffer_blit(struct voxel_framebuffer *fb,uint32_t x,uint32_t y,uint32_t w,uint32_t h,const uint32_t*p,size_t stride){(void)fb;(void)x;(void)y;(void)w;(void)h;(void)p;(void)stride;return 0;}
+int voxel_framebuffer_blit_scaled(struct voxel_framebuffer *fb,uint32_t sx,uint32_t sy,uint32_t sw,uint32_t sh,uint32_t vw,uint32_t vh,const uint32_t*p,size_t stride){(void)fb;(void)sx;(void)sy;(void)sw;(void)sh;(void)vw;(void)vh;(void)p;(void)stride;return 0;}
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -56,3 +56,44 @@ int voxel_framebuffer_blit(struct voxel_framebuffer *fb,
     }
     return 0;
 }
+
+int voxel_framebuffer_blit_scaled(struct voxel_framebuffer *fb,
+                                  uint32_t sx, uint32_t sy,
+                                  uint32_t sw, uint32_t sh,
+                                  uint32_t vw, uint32_t vh,
+                                  const uint32_t *pixels, size_t stride_pixels)
+{
+    /* One scaled row at a time keeps the staging buffer small (16 KiB) while
+     * still filling the real panel: SYS_FBWRITE takes XRGB8888 words only. */
+    static uint32_t row[4096];
+    uint32_t dx0, dx1, dy0, dy1, dx, dy;
+
+    if (!fb || !pixels || !vw || !vh || !sw || !sh || !fb->info.present ||
+        sx >= vw || sy >= vh || sw > vw - sx || sh > vh - sy ||
+        stride_pixels < sx + sw)
+        return -1;
+    dx0 = (uint32_t)(((uint64_t)sx * fb->info.width) / vw);
+    dx1 = (uint32_t)(((uint64_t)(sx + sw) * fb->info.width + vw - 1u) / vw);
+    dy0 = (uint32_t)(((uint64_t)sy * fb->info.height) / vh);
+    dy1 = (uint32_t)(((uint64_t)(sy + sh) * fb->info.height + vh - 1u) / vh);
+    if (!dx0 && !dx1) dx1 = (uint32_t)fb->info.width;
+    if (!dy0 && !dy1) dy1 = (uint32_t)fb->info.height;
+    if (dx1 > fb->info.width) dx1 = (uint32_t)fb->info.width;
+    if (dy1 > fb->info.height) dy1 = (uint32_t)fb->info.height;
+    if (dx1 <= dx0 || dy1 <= dy0 || dx1 - dx0 > 4096u)
+        return -1;
+
+    for (dy = dy0; dy < dy1; dy++) {
+        uint32_t src_y = sy + (uint32_t)(((uint64_t)(dy - dy0) * sh) / (dy1 - dy0));
+        if (src_y >= sy + sh) src_y = sy + sh - 1u;
+        for (dx = dx0; dx < dx1; dx++) {
+            uint32_t src_x = sx + (uint32_t)(((uint64_t)(dx - dx0) * sw) / (dx1 - dx0));
+            if (src_x >= sx + sw) src_x = sx + sw - 1u;
+            row[dx - dx0] = pixels[(size_t)src_y * stride_pixels + src_x];
+        }
+        if (voxel_framebuffer_blit(fb, dx0, dy, dx1 - dx0, 1u, row,
+                                   dx1 - dx0) != 0)
+            return -1;
+    }
+    return 0;
+}

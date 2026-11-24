@@ -48,6 +48,19 @@ static int stat_path(void*u,const char*path,uint32_t*mode)
     if(syscall2(VOXEL_SYS_STAT,(long)(uintptr_t)path,(long)(uintptr_t)&st)<0)return -1;
     *mode=st.mode;return 0;
 }
+static int getcwd_cb(void*u,char*buffer,uint32_t capacity)
+{
+    long n;(void)u;if(!buffer||!capacity)return -1;
+    n=syscall2(VOXEL_SYS_GETCWD,(long)(uintptr_t)buffer,capacity);
+    return n<0?-1:0;
+}
+static int mkdir_cb(void*u,const char*path){(void)u;return !path?-1:(syscall1(VOXEL_SYS_MKDIR,(long)(uintptr_t)path)<0?-1:0);}
+static int unlink_cb(void*u,const char*path){(void)u;return !path?-1:(syscall1(VOXEL_SYS_UNLINK,(long)(uintptr_t)path)<0?-1:0);}
+static int rename_cb(void*u,const char*oldpath,const char*newpath)
+{
+    (void)u;if(!oldpath||!newpath)return -1;
+    return syscall2(VOXEL_SYS_RENAME,(long)(uintptr_t)oldpath,(long)(uintptr_t)newpath)<0?-1:0;
+}
 static void open_path(void*u,const char*path){(void)u;(void)path;}
 static int spawn(void*u,const char*path)
 {
@@ -64,6 +77,10 @@ void voxel_newos_app_host_init(struct voxel_app_host*host)
     host->write_file=write_file;
     host->spawn=spawn;
     host->stat_path=stat_path;
+    host->getcwd=getcwd_cb;
+    host->mkdir=mkdir_cb;
+    host->unlink=unlink_cb;
+    host->rename=rename_cb;
     host->theme=0;
     host->open_path=open_path;
     host->open_image=0;

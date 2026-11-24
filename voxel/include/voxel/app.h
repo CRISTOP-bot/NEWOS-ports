@@ -48,6 +48,11 @@ struct voxel_app_host {
     int (*spawn)(void *userdata, const char *path);
     int (*stat_path)(void *userdata, const char *path, uint32_t *mode);
     int (*getcwd)(void *userdata, char *buffer, uint32_t capacity);
+    /* VFS mutations used by the file manager. On /fat, rename is refused by
+     * the kernel VFS, so callers must fall back to create+copy+unlink. */
+    int (*mkdir)(void *userdata, const char *path);
+    int (*unlink)(void *userdata, const char *path);
+    int (*rename)(void *userdata, const char *oldpath, const char *newpath);
     struct voxel_theme_state *theme;
     void (*open_path)(void *userdata, const char *path);
     int (*open_image)(void *userdata, const char *path);

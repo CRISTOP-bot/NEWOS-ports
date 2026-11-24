@@ -13,6 +13,7 @@
 #define TITLE_H 22
 #define APP_COUNT VOXEL_APP_COUNT
 static int doom_launch_requested = 0;
+static int scale_to_panel = 0;      /* persisted in /fat/VOXEL.CFG as scale=1 */
 #define POPUP_W VIEW_W
 #define POPUP_H VIEW_H
 #define MENU_W 188u
@@ -85,22 +86,13 @@ static uint32_t parse_frame_limit(int argc,char **argv)
 static void draw_wallpaper(struct voxel_surface *s)
 {
     uint32_t y, x;
+    uint32_t base = theme.desktop ? theme.desktop : VOXEL_UI_DESKTOP;
     if (!s || !s->pixels) return;
-    for (y = 0; y < s->height; ++y) {
-        /* Rich gradient: deep blue at top to teal at bottom */
-        uint32_t t = (uint32_t)((uint64_t)y * 255u / (s->height ? s->height - 1 : 1));
-        uint32_t r = (uint32_t)(0x00u + (0x00u - 0x00u) * t / 255u);
-        uint32_t g = (uint32_t)(0x10u + (0x70u - 0x10u) * t / 255u);
-        uint32_t b = (uint32_t)(0x40u + (0x90u - 0x40u) * t / 255u);
-        uint32_t color = (r << 16) | (g << 8) | b;
-        for (x = 0; x < s->width; ++x) {
-            /* Subtle diagonal wave pattern */
-            uint32_t c = color;
-            uint32_t wave = (uint32_t)((x * 3 + y * 2) / 24u) % 2u;
-            if (wave == 0u) c = (c & 0xfefefe) >> 1;
-            s->pixels[(size_t)y * s->stride_pixels + x] = c;
-        }
-    }
+    /* Windows 95 default desktop: a solid teal field. Settings can change
+     * the color; it is applied flat, without gradients or dithering. */
+    for (y = 0; y < s->height; ++y)
+        for (x = 0; x < s->width; ++x)
+            s->pixels[(size_t)y * s->stride_pixels + x] = base;
 }
 
 static void draw_desktop(void)
@@ -329,6 +321,7 @@ int main(int argc,char **argv)
     }
     voxel_newos_app_host_init(&app_host);
     app_host.theme=&theme;
+    voxel_ui_set_palette(&theme);   /* widgets follow the persisted theme */
     for(int i=0;i<APP_COUNT;++i) {
         const struct voxel_app_descriptor *d=voxel_app_get((enum voxel_app_id)i);
         uint32_t w=(i==VOXEL_APP_EXPLORER?380u:320u),h=(i==VOXEL_APP_EXPLORER?300u:240u);
@@ -369,7 +362,26 @@ int main(int argc,char **argv)
             (void)voxel_compositor_raise(&compositor,cursor_layer);
         }
     }
-    origin_x=(uint32_t)((fb.info.width-VIEW_W)/2u);origin_y=(uint32_t)((fb.info.height-VIEW_H)/2u);
+    /* Optional fullscreen mode: default is the original centered 1:1 view,
+     * because scaling can distort the pointer and make the window feel huge.
+     * Settings writes `scale=1` to /fat/VOXEL.CFG to opt in. */
+    {
+        char cfg[64];
+        uint32_t n=0, i;
+        scale_to_panel=0;
+        if(app_host.read_file)
+            (void)app_host.read_file(app_host.userdata,"/fat/VOXEL.CFG",cfg,
+                                     sizeof(cfg),&n);
+        for(i=0;i+7u<n;i++)
+            if(cfg[i]=='s'&&cfg[i+1]=='c'&&cfg[i+2]=='a'&&cfg[i+3]=='l'&&
+               cfg[i+4]=='e'&&cfg[i+5]=='='&&cfg[i+6]=='1')
+                scale_to_panel=1;
+    }
+    if(scale_to_panel){ origin_x=0u;origin_y=0u; }
+    else {
+        origin_x=(uint32_t)((fb.info.width-VIEW_W)/2u);
+        origin_y=(uint32_t)((fb.info.height-VIEW_H)/2u);
+    }
     voxel_key_decoder_init(&keydecoder);
     (void)voxel_console_gui_claim();
     (void)voxel_keyboard_grab();
@@ -378,7 +390,15 @@ int main(int argc,char **argv)
         int full_redraw=needs_full_frame;
         int changed=full_redraw;
         if(voxel_pointer_poll(&pointer)==0) {
-            int32_t mx=pointer.x-(int32_t)origin_x,my=pointer.y-(int32_t)origin_y;
+            int64_t px=pointer.x<0?0:pointer.x,py=pointer.y<0?0:pointer.y;
+            int32_t mx,my;
+            if(scale_to_panel){
+                mx=(int32_t)(((uint64_t)px*VIEW_W)/fb.info.width);
+                my=(int32_t)(((uint64_t)py*VIEW_H)/fb.info.height);
+            } else {
+                mx=(int32_t)(px-(int64_t)origin_x);
+                my=(int32_t)(py-(int64_t)origin_y);
+            }
             if (mx < 0) mx = 0;
             if (my < 0) my = 0;
             if (mx >= (int32_t)VIEW_W) mx = (int32_t)VIEW_W - 1;

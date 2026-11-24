@@ -234,10 +234,25 @@ int voxel_compositor_present_dirty(struct voxel_compositor *compositor,
     /* compose() clips to the same damage rect, then clears it. */
     voxel_compositor_compose(compositor, full);
 
-    return voxel_framebuffer_blit(fb, origin_x + dirty.x, origin_y + dirty.y,
-                                  dirty.width, dirty.height,
-                                  compositor->output +
-                                      (size_t)dirty.y * compositor->stride_pixels +
-                                      (size_t)dirty.x,
-                                  compositor->stride_pixels);
+    /* A non-zero origin means the caller is letterboxing the view; keep the
+     * original 1:1 presentation. Only the fullscreen mode scales. */
+    if (origin_x || origin_y ||
+        (fb->info.width == compositor->width &&
+         fb->info.height == compositor->height))
+        return voxel_framebuffer_blit(fb, origin_x + dirty.x, origin_y + dirty.y,
+                                      dirty.width, dirty.height,
+                                      compositor->output +
+                                          (size_t)dirty.y * compositor->stride_pixels +
+                                          (size_t)dirty.x,
+                                      compositor->stride_pixels);
+
+    /* Panel larger than the internal view: scale the dirty rectangle up to
+     * fill the whole screen instead of letterboxing a 640x480 island. */
+    return voxel_framebuffer_blit_scaled(fb, dirty.x, dirty.y,
+                                         dirty.width, dirty.height,
+                                         compositor->width, compositor->height,
+                                         compositor->output +
+                                             (size_t)dirty.y * compositor->stride_pixels +
+                                             (size_t)dirty.x,
+                                         compositor->stride_pixels);
 }

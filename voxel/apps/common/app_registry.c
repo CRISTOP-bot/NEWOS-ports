@@ -5,6 +5,8 @@ void voxel_about_draw(struct voxel_app_context *);
 void voxel_explorer_init(struct voxel_app_context *);
 void voxel_explorer_draw(struct voxel_app_context *);
 int voxel_explorer_pointer(struct voxel_app_context *, int32_t, int32_t);
+int voxel_explorer_key(struct voxel_app_context *, uint32_t);
+void voxel_settings_init(struct voxel_app_context *);
 void voxel_settings_draw(struct voxel_app_context *);
 int voxel_settings_pointer(struct voxel_app_context *, int32_t, int32_t);
 void voxel_run_init(struct voxel_app_context *);
@@ -26,8 +28,8 @@ int voxel_imageview_pointer(struct voxel_app_context *, int32_t, int32_t);
 
 static const struct voxel_app_descriptor apps[VOXEL_APP_COUNT] = {
     [VOXEL_APP_ABOUT] = {"about", "About VOXEL", 0, voxel_about_draw, 0, 0},
-    [VOXEL_APP_EXPLORER] = {"explorer", "File Explorer", voxel_explorer_init, voxel_explorer_draw, voxel_explorer_pointer, 0},
-    [VOXEL_APP_SETTINGS] = {"settings", "Display Properties", 0, voxel_settings_draw, voxel_settings_pointer, 0},
+    [VOXEL_APP_EXPLORER] = {"explorer", "File Explorer", voxel_explorer_init, voxel_explorer_draw, voxel_explorer_pointer, voxel_explorer_key},
+    [VOXEL_APP_SETTINGS] = {"settings", "Display Properties", voxel_settings_init, voxel_settings_draw, voxel_settings_pointer, 0},
     [VOXEL_APP_RUN] = {"run", "Run", voxel_run_init, voxel_run_draw, voxel_run_pointer, voxel_run_key},
     [VOXEL_APP_TERMINAL] = {"terminal", "VOXEL Console", voxel_terminal_init, voxel_terminal_draw, voxel_terminal_pointer, voxel_terminal_key},
     [VOXEL_APP_HELLOWORLD] = {"helloworld", "Hello, World!", 0, voxel_helloworld_draw, 0, 0},
