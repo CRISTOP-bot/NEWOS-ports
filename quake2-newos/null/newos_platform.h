@@ -20,5 +20,6 @@ extern unsigned char q2_palette[256 * 3];
 
 /* Expand one row of 8-bit paletized pixels to XRGB8888 words. */
 void q2_expand_row(const unsigned char *src, u32 *dst, int width);
+void q2_show_splash(const char *line1, const char *line2);
 
 #endif

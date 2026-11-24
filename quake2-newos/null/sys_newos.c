@@ -172,6 +172,16 @@ void Sys_Printf(char *fmt, ...)
 /* Real entry point: startup with the standard Quame argument convention. */
 int main(int argc, char **argv)
 {
+    /* Claim the framebuffer and show a banner immediately, so running
+     * `quake2` visibly opens even before the engine (or game data) loads. */
+    {
+        long rc = sys_console_gui(1);
+        if (rc != 0) {
+            char m[] = "Q2: console_gui FAILED\n";
+            sys_write(1, m, sizeof(m)-1);
+        }
+    }
+    q2_show_splash("QUAKE 2 FOR NEWOS", "NEEDS PAK0.PAK - SEE README");
     Qcommon_Init(argc, argv);
     for (;;)
         Qcommon_Frame(0.1f);
