@@ -164,24 +164,34 @@ void SWimp_BeginFrame(float camera_separation)
 void SWimp_EndFrame(void)
 {
     struct nsh_fbinfo fi;
-    int y;
 
     if (sys_fbinfo(&fi) != 0 || !fi.present)
         return;
     if (fi.bpp == 32 && fi.width && fi.height && vid.buffer) {
-        int w = (int)((u64)vid.width < fi.width ? (u64)vid.width : fi.width);
-        int h = (int)((u64)vid.height < fi.height ? (u64)vid.height : fi.height);
-        int xo = (int)((fi.width  - (u64)vid.width)  / 2);
-        int yo = (int)((fi.height - (u64)vid.height) / 2);
+        /* Fullscreen: stretch the software renderer's output to fill the
+         * whole framebuffer (no centered letterbox). Nearest-neighbour
+         * scaling keeps it integer-only; q2_row caps the width at 1024,
+         * which matches the BGA 1024x768 mode. */
+        int sw = (int)vid.width, sh = (int)vid.height;
+        int dw = (int)(fi.width < 1024u ? fi.width : 1024u);
+        int dh = (int)fi.height;
+        int dy;
 
-        for (y = 0; y < h; y++) {
-            const unsigned char *src = vid.buffer + y * vid.rowbytes;
-            q2_expand_row(src, q2_row, w);
+        for (dy = 0; dy < dh; dy++) {
+            int sy = (sh > 0) ? (dy * sh / dh) : 0;
+            const unsigned char *src = vid.buffer + (u64)sy * vid.rowbytes;
+            int dx;
+            for (dx = 0; dx < dw; dx++) {
+                int sx = (sw > 0) ? (dx * sw / dw) : 0;
+                const unsigned char *c = &q2_palette[src[sx] * 3];
+                q2_row[dx] = 0xff000000u | ((u32)c[0] << 16) |
+                             ((u32)c[1] << 8) | c[2];
+            }
             struct nsh_fbwrite rq;
-            rq.x = (u64)xo; rq.y = (u64)(yo + y);
-            rq.w = (u64)w; rq.h = 1;
+            rq.x = 0; rq.y = (u64)dy;
+            rq.w = (u64)dw; rq.h = 1;
             rq.pixels = (u64)(unsigned long)q2_row;
-            rq.pixlen = (u64)w * 4u;
+            rq.pixlen = (u64)dw * 4u;
             sys_fbwrite(&rq);
         }
     }
