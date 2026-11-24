@@ -9,7 +9,7 @@ embedded as `/bin/fastfetch`.
 ports/fastfetch/
 ├── src/        upstream fastfetch source (v2.72.0) + NEWOS ASCII logo
 ├── fastfetch   static x86_64 ET_EXEC (embedded as /bin/fastfetch)
-├── COPYING     MIT license (upstream license, kept verbatim)
+├── LICENSE     MIT license (upstream license, kept verbatim)
 ├── SHA256SUMS  digest of the embedded binary
 └── README.md
 ```
@@ -18,8 +18,7 @@ ports/fastfetch/
 
 - Upstream: <https://github.com/fastfetch-cli/fastfetch>
 - Upstream release: **v2.72.0** (commit `83a6783576f91cbfba52270d2ab673555a88d035`)
-- License: **MIT** (`LICENSE` copied as `COPYING`); the NEWOS fork keeps the
-  same license.
+- License: **MIT** (`LICENSE`); the NEWOS fork keeps the same license.
 - Local change: `src/logo/ascii/n/newos.txt` — a NEWOS ASCII logo (registered
   in `src/logo/ascii/n.inc` so `--logo newos` and distro auto-detection both
   find it).
@@ -32,11 +31,14 @@ NEWOS's Linux-compatible `SYSCALL` entry, the same path used by `/bin/busybox`,
 `fastfetch.bin.o` object is linked into the kernel image, and initramfs
 installs it as `/bin/fastfetch`.
 
-The build uses the host GCC 14 in C23 mode with `-static`; the bundled yyjson
-is compiled in and every optional native graphics/desktop library (X11,
-Wayland, DRM, Vulkan, D-Bus, SQLite3, ImageMagick, Lua, …) is disabled at
-CMake time. `BINARY_LINK_TYPE=static` also compiles out `dlopen`, so the
-binary needs no shared objects at runtime.
+The build uses a C23-capable musl cross toolchain (GCC 16 from Bootlin's
+`x86-64--musl--bleeding-edge-2026.08-1`) in `-static` mode — the same static
+musl profile as nano/tcc, which is required because static glibc does not run
+correctly on NEWOS's syscall layer. The bundled yyjson is compiled in and
+every optional native graphics/desktop library (X11, Wayland, DRM, Vulkan,
+D-Bus, SQLite3, ImageMagick, Lua, …) is disabled at CMake time.
+`BINARY_LINK_TYPE=static` also compiles out `dlopen`, so the binary needs no
+shared objects at runtime.
 
 ## Limitations on NEWOS
 
