@@ -181,7 +181,7 @@ int main(int argc, char **argv)
             sys_write(1, m, sizeof(m)-1);
         }
     }
-    q2_show_splash("QUAKE 2 FOR NEWOS", "NEEDS PAK0.PAK - SEE README");
+    q2_show_splash("QUAKE 2 FOR NEWOS", "LOADING DEMO...");
     Qcommon_Init(argc, argv);
     for (;;)
         Qcommon_Frame(0.1f);
