@@ -9,6 +9,7 @@ ports/tcc/
 ├── src/          upstream tcc-0.9.27 source + the NEWOS search-path patch
 ├── patches/      every NEWOS change as a standalone diff against upstream
 ├── demo/hello.c  canonical copy of the image's /etc/tcc-hello.c
+├── main.c        full-libc test program, installed as /etc/tcc-main.c
 ├── tcc           static x86_64-linux-musl ET_EXEC (embedded as /bin/tcc)
 ├── libtcc1.a     tcc runtime helpers (shipped by the SDK, see below)
 ├── COPYING       LGPL-2.1 (upstream license, kept verbatim)
@@ -59,6 +60,10 @@ tcc -nostdlib -run /etc/tcc-hello.c         # compile and run in this process
 own address space and calls `main`, so it needs neither `fork` nor `execve`
 (NEWOS deliberately has neither). The demo is freestanding and talks to the
 kernel through `int $0x80`.
+
+For a full-libc smoke test, use `/etc/tcc-main.c` (canonical copy:
+`ports/tcc/main.c`), which exercises `puts`, `printf` and `argv` through the
+SDK. It needs the SDK package installed (see the link recipe below).
 
 A full link needs the NEWOS SDK (headers, `crt0.o`, `libc.a`) because TCC's
 own startup files and C library are Linux/musl artifacts:
