@@ -1,0 +1,51 @@
+# Quake 2 (id Software, GPL-2.0) port for NEWOS.
+#
+# Builds the Quake 2 engine with the software renderer (ref_soft) against
+# NEWOS-specific backends (sys/in/vid/swimp/snddma) using the framebuffer
+# and audio syscalls. No X11/OpenGL/SDL/OSS. FPU is enabled (Quake is
+# floating-point heavy) like the DOOM and glxgears ports.
+
+CC      ?= gcc
+ROOT    ?= ../..
+USERLIB := $(ROOT)/userland/user/lib
+SYSROOT := $(ROOT)/sysroot
+
+# Upstream C: relax warnings (1997-era K&R code), allow common symbols,
+# enable FPU. The NEWOS backends are compiled with full -Werror separately.
+UP_CFLAGS := -include null/q2_compat.h -std=gnu89 -O2 -ffreestanding -fno-pic -fno-pie \
+             -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables \
+             -fno-unwind-tables -fcommon -Wno-error -w \
+             -Inull -Iqcommon -Iclient -Iserver -Igame -Iref_soft -I$(USERLIB) \
+             -I$(SYSROOT)/usr/include
+NOS_CFLAGS := $(filter-out -w -Wno-error,$(UP_CFLAGS)) -Wall -Wextra -Werror
+
+UP_SRCS := $(filter-out server/sv_null.c,$(wildcard qcommon/*.c client/*.c server/*.c game/*.c ref_soft/*.c))
+# Backends provided by the port itself (replace the null/linux ones).
+NOS_SRCS := null/sys_newos.c null/in_newos.c null/vid_null.c \
+            null/swimp_newos.c null/snddma_newos.c null/cd_null.c \
+            null/cl_null.c null/net_newos.c null/in_joystick.c
+
+UP_OBJS := $(patsubst %.c,build/%.o,$(UP_SRCS))
+NOS_OBJS := $(patsubst %.c,build/%.o,$(NOS_SRCS))
+BINARY  := build/quake2.elf
+
+all: $(BINARY)
+
+build/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(UP_CFLAGS) -c $< -o $@
+
+build/null/sys_newos.o build/null/in_newos.o build/null/swimp_newos.o \
+build/null/snddma_newos.o: UP_CFLAGS = $(NOS_CFLAGS)
+
+$(BINARY): $(UP_OBJS) $(NOS_OBJS) $(SYSROOT)/usr/lib/libc.a \
+           $(SYSROOT)/usr/lib/libnsh.a $(SYSROOT)/usr/lib/crt0.o
+	@mkdir -p $(dir $@)
+	$(CC) -nostdlib -static -Wl,--allow-multiple-definition -Wl,-T,$(SYSROOT)/usr/lib/app.ld -o $@ \
+	  $(SYSROOT)/usr/lib/crt0.o $(NOS_OBJS) $(UP_OBJS) \
+	  $(SYSROOT)/usr/lib/libc.a $(SYSROOT)/usr/lib/libnsh.a -lm
+
+clean:
+	rm -rf build
+
+.PHONY: all clean
